@@ -297,8 +297,8 @@ window.SoulReport = (() => {
   // ═══ 辅助函数 ═══
 
   function getLevel(score) {
-    if (score >= 80) return 'veryHigh';
-    if (score >= 60) return 'high';
+    if (score >= 82) return 'veryHigh';
+    if (score >= 62) return 'high';
     if (score >= 45) return 'midHigh';
     if (score >= 28) return 'midLow';
     return 'low';
