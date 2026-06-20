@@ -101,24 +101,34 @@ window.SoulScoring = {
   generatePersonaTags(scores) {
     const tags = [];
 
-    if (scores.openness >= 67) tags.push('梦想家');
-    else if (scores.openness >= 34) tags.push('平衡者');
-    else tags.push('务实者');
+    if (scores.openness >= 80) tags.push('梦想家');
+    else if (scores.openness >= 60) tags.push('探索者');
+    else if (scores.openness >= 45) tags.push('平衡者');
+    else if (scores.openness >= 28) tags.push('务实者');
+    else tags.push('守恒者');
 
-    if (scores.conscientiousness >= 67) tags.push('建造者');
-    else if (scores.conscientiousness >= 34) tags.push('航行者');
-    else tags.push('流浪者');
+    if (scores.conscientiousness >= 80) tags.push('建造者');
+    else if (scores.conscientiousness >= 60) tags.push('规划师');
+    else if (scores.conscientiousness >= 45) tags.push('航行者');
+    else if (scores.conscientiousness >= 28) tags.push('随性者');
+    else tags.push('自由魂');
 
-    if (scores.extraversion >= 67) tags.push('发光体');
-    else if (scores.extraversion >= 34) tags.push('适应者');
+    if (scores.extraversion >= 80) tags.push('发光体');
+    else if (scores.extraversion >= 60) tags.push('社交家');
+    else if (scores.extraversion >= 45) tags.push('适应者');
+    else if (scores.extraversion >= 28) tags.push('旁观者');
     else tags.push('独行者');
 
-    if (scores.agreeableness >= 67) tags.push('治愈者');
-    else if (scores.agreeableness >= 34) tags.push('协调者');
+    if (scores.agreeableness >= 80) tags.push('治愈者');
+    else if (scores.agreeableness >= 60) tags.push('守护者');
+    else if (scores.agreeableness >= 45) tags.push('协调者');
+    else if (scores.agreeableness >= 28) tags.push('直率者');
     else tags.push('守界者');
 
-    if (scores.neuroticism >= 67) tags.push('深感者');
-    else if (scores.neuroticism >= 34) tags.push('波澜者');
+    if (scores.neuroticism >= 80) tags.push('深感者');
+    else if (scores.neuroticism >= 60) tags.push('感应者');
+    else if (scores.neuroticism >= 45) tags.push('波澜者');
+    else if (scores.neuroticism >= 28) tags.push('沉稳者');
     else tags.push('平静者');
 
     return tags;
@@ -185,35 +195,35 @@ window.SoulScoring = {
       }
     ];
 
-    const getLevel = (val) => val >= 65 ? 'high' : val >= 35 ? 'mid' : 'low';
+    const getLevel = (val) => val >= 70 ? 'high' : val >= 42 ? 'mid' : 'low';
 
+    // 每个维度都参与评分，不匹配的维度扣分
+    // 这样避免了"类型未检查某维度 → 该维度不惩罚"的问题
     let bestMatch = null;
     let bestScore = -Infinity;
 
     patterns.forEach(type => {
-      let matchPoints = 0;
-      let totalChecks = 0;
+      let total = 0;
 
       this.DIMENSIONS.forEach(dim => {
-        if (type.pattern[dim]) {
-          totalChecks++;
-          const userLevel = getLevel(scores[dim]);
-          const expectedLevel = type.pattern[dim];
+        const userLevel = getLevel(scores[dim]);
+        const expectedLevel = type.pattern[dim] || 'mid'; // 未指定的维度默认期望 mid
 
-          if (userLevel === expectedLevel) {
-            matchPoints += 2;
-          } else if (
-            (userLevel === 'mid' && expectedLevel === 'high') ||
-            (userLevel === 'high' && expectedLevel === 'mid') ||
-            (userLevel === 'mid' && expectedLevel === 'low') ||
-            (userLevel === 'low' && expectedLevel === 'mid')
-          ) {
-            matchPoints += 1;
-          }
+        if (userLevel === expectedLevel) {
+          total += 2; // 完全匹配
+        } else if (
+          (userLevel === 'mid' && expectedLevel === 'high') ||
+          (userLevel === 'high' && expectedLevel === 'mid') ||
+          (userLevel === 'mid' && expectedLevel === 'low') ||
+          (userLevel === 'low' && expectedLevel === 'mid')
+        ) {
+          total += 1; // 相邻档位，部分匹配
         }
+        // 跨档位不匹配：0 分（如 high vs low）
       });
 
-      const finalScore = totalChecks > 0 ? matchPoints / totalChecks : 0;
+      // 归一化到 0-1
+      const finalScore = total / (this.DIMENSIONS.length * 2);
       if (finalScore > bestScore) {
         bestScore = finalScore;
         bestMatch = type;
