@@ -14,6 +14,8 @@ window.SoulUI = (() => {
     phase: 'welcome'    // welcome | quiz | loading | report
   };
 
+  const STORAGE_KEY = 'soul_quiz_state';
+
   // ═══ DOM 引用（运行时绑定） ═══
   let els = {};
 
@@ -29,7 +31,48 @@ window.SoulUI = (() => {
     const shared = window.SoulShare.parseShareLink();
     if (shared) {
       showSharedReport(shared);
+      return;
     }
+
+    // 恢复未完成的答题进度
+    restoreProgress();
+  }
+
+  /**
+   * 保存答题进度到 localStorage
+   */
+  function saveProgress() {
+    try {
+      localStorage.setItem(STORAGE_KEY, JSON.stringify({
+        currentQuestion: state.currentQuestion,
+        answers: state.answers,
+        phase: state.phase === 'quiz' ? 'quiz' : null
+      }));
+    } catch (e) { /* quota exceeded, ignore */ }
+  }
+
+  /**
+   * 从 localStorage 恢复进度
+   */
+  function restoreProgress() {
+    try {
+      const saved = localStorage.getItem(STORAGE_KEY);
+      if (!saved) return;
+      const data = JSON.parse(saved);
+      if (data.phase === 'quiz' && data.answers && data.answers.length > 0) {
+        state.currentQuestion = data.currentQuestion || 0;
+        state.answers = data.answers;
+        showScreen('quiz');
+        renderQuestion();
+      }
+    } catch (e) { /* corrupted data, ignore */ }
+  }
+
+  /**
+   * 清除保存的进度
+   */
+  function clearSavedProgress() {
+    try { localStorage.removeItem(STORAGE_KEY); } catch (e) {}
   }
 
   function cacheElements() {
@@ -169,11 +212,24 @@ window.SoulUI = (() => {
     card.appendChild(optionsEl);
     area.appendChild(card);
 
-    // 恢复之前的选择（如果有的话）
+    // 恢复之前的选择
     const existing = state.answers.find(a => a.questionId === q.id);
-    if (existing && q.type !== 'ranking') {
-      const btn = area.querySelector(`[data-id="${existing.choice}"]`);
-      if (btn) btn.classList.add('selected');
+    if (existing) {
+      if (q.type === 'ranking' && Array.isArray(existing.choice)) {
+        // 恢复排序顺序
+        requestAnimationFrame(() => {
+          const list = document.getElementById('ranking-list');
+          if (!list) return;
+          existing.choice.forEach(optId => {
+            const item = list.querySelector(`[data-id="${optId}"]`);
+            if (item) list.appendChild(item);
+          });
+          updateRankNumbers(list);
+        });
+      } else if (q.type !== 'ranking') {
+        const btn = area.querySelector(`[data-id="${existing.choice}"]`);
+        if (btn) btn.classList.add('selected');
+      }
     }
   }
 
@@ -193,8 +249,20 @@ window.SoulUI = (() => {
       el.classList.toggle('selected', String(el.dataset.id) === String(choice));
     });
 
-    // 延迟跳转下一题
-    setTimeout(() => {
+    // 显示确认按钮（防止误触）
+    showConfirmButton(questionId);
+  }
+
+  function showConfirmButton(questionId) {
+    // 移除已有的确认按钮
+    const existing = document.querySelector('.btn-confirm-next');
+    if (existing) existing.remove();
+
+    const btn = document.createElement('button');
+    btn.className = 'btn-confirm-next';
+    btn.textContent = '确认 →';
+    btn.addEventListener('click', () => {
+      saveProgress();
       if (state.currentQuestion < window.SOUL_QUESTIONS.length - 1) {
         state.currentQuestion++;
         const card = document.querySelector('.question-card');
@@ -208,7 +276,10 @@ window.SoulUI = (() => {
       } else {
         finishQuiz();
       }
-    }, 400);
+    });
+
+    const area = document.getElementById('question-area');
+    if (area) area.appendChild(btn);
   }
 
   function confirmRanking(questionId) {
@@ -224,6 +295,7 @@ window.SoulUI = (() => {
     }
 
     // 跳转
+    saveProgress();
     if (state.currentQuestion < window.SOUL_QUESTIONS.length - 1) {
       state.currentQuestion++;
       renderQuestion();
@@ -236,6 +308,7 @@ window.SoulUI = (() => {
     if (state.currentQuestion > 0) {
       state.currentQuestion--;
       renderQuestion();
+      saveProgress();
     }
   }
 
@@ -325,6 +398,7 @@ window.SoulUI = (() => {
   // ═══ 完成答题 ═══
 
   function finishQuiz() {
+    clearSavedProgress();
     showScreen('loading');
     startLoadingAnimation();
 
@@ -606,100 +680,82 @@ window.SoulUI = (() => {
     const angleStep = (Math.PI * 2) / n;
     const startAngle = -Math.PI / 2;
 
-    // 绘制网格线
-    for (let ring = 1; ring <= 5; ring++) {
-      const r = (radius / 5) * ring;
-      ctx.beginPath();
-      for (let i = 0; i <= n; i++) {
-        const angle = startAngle + angleStep * (i % n);
-        const x = cx + Math.cos(angle) * r;
-        const y = cy + Math.sin(angle) * r;
-        if (i === 0) ctx.moveTo(x, y);
-        else ctx.lineTo(x, y);
+    const params = { ctx, cx, cy, radius, dims, labels, icons, n, angleStep, startAngle, scores, color };
+
+    // 绘制静态元素（网格 + 轴线 + 标签）
+    function drawStatic(p) {
+      const { ctx, cx, cy, radius, dims, labels, icons, n, angleStep, startAngle, scores } = p;
+
+      // 网格线
+      for (let ring = 1; ring <= 5; ring++) {
+        const r = (radius / 5) * ring;
+        ctx.beginPath();
+        for (let i = 0; i <= n; i++) {
+          const angle = startAngle + angleStep * (i % n);
+          const x = cx + Math.cos(angle) * r;
+          const y = cy + Math.sin(angle) * r;
+          if (i === 0) ctx.moveTo(x, y); else ctx.lineTo(x, y);
+        }
+        ctx.closePath();
+        ctx.strokeStyle = 'rgba(255, 255, 255, 0.08)';
+        ctx.lineWidth = 1;
+        ctx.stroke();
       }
-      ctx.closePath();
-      ctx.strokeStyle = 'rgba(255, 255, 255, 0.08)';
-      ctx.lineWidth = 1;
-      ctx.stroke();
+
+      // 轴线
+      for (let i = 0; i < n; i++) {
+        const angle = startAngle + angleStep * i;
+        ctx.beginPath();
+        ctx.moveTo(cx, cy);
+        ctx.lineTo(cx + Math.cos(angle) * radius, cy + Math.sin(angle) * radius);
+        ctx.strokeStyle = 'rgba(255, 255, 255, 0.1)';
+        ctx.lineWidth = 1;
+        ctx.stroke();
+      }
+
+      // 标签 + 分数
+      ctx.textAlign = 'center';
+      ctx.textBaseline = 'middle';
+      for (let i = 0; i < n; i++) {
+        const angle = startAngle + angleStep * i;
+        ctx.fillStyle = '#ccc';
+        ctx.font = '14px sans-serif';
+        ctx.fillText(icons[i] + ' ' + labels[i], cx + Math.cos(angle) * (radius + 28), cy + Math.sin(angle) * (radius + 28));
+        ctx.fillStyle = '#f0c27f';
+        ctx.font = 'bold 13px sans-serif';
+        ctx.fillText(scores[dims[i]], cx + Math.cos(angle) * (radius + 46), cy + Math.sin(angle) * (radius + 46));
+      }
     }
 
-    // 绘制轴线
-    for (let i = 0; i < n; i++) {
-      const angle = startAngle + angleStep * i;
-      ctx.beginPath();
-      ctx.moveTo(cx, cy);
-      ctx.lineTo(cx + Math.cos(angle) * radius, cy + Math.sin(angle) * radius);
-      ctx.strokeStyle = 'rgba(255, 255, 255, 0.1)';
-      ctx.lineWidth = 1;
-      ctx.stroke();
-    }
-
-    // 绘制标签
-    ctx.fillStyle = '#ccc';
-    ctx.font = '14px sans-serif';
-    ctx.textAlign = 'center';
-    ctx.textBaseline = 'middle';
-    for (let i = 0; i < n; i++) {
-      const angle = startAngle + angleStep * i;
-      const labelR = radius + 28;
-      const x = cx + Math.cos(angle) * labelR;
-      const y = cy + Math.sin(angle) * labelR;
-      ctx.fillText(icons[i] + ' ' + labels[i], x, y);
-
-      // 分数值
-      const scoreR = radius + 46;
-      const sx = cx + Math.cos(angle) * scoreR;
-      const sy = cy + Math.sin(angle) * scoreR;
-      ctx.fillStyle = '#f0c27f';
-      ctx.font = 'bold 13px sans-serif';
-      ctx.fillText(scores[dims[i]], sx, sy);
-      ctx.fillStyle = '#ccc';
-      ctx.font = '14px sans-serif';
-    }
-
-    // 绘制数据区域（带动画）
-    animateRadarFill(ctx, cx, cy, radius, dims, scores, startAngle, angleStep, color);
-  }
-
-  function animateRadarFill(ctx, cx, cy, radius, dims, scores, startAngle, angleStep, color) {
+    // 动画绘制数据区域
     let progress = 0;
-    const duration = 40; // frames
+    const duration = 40;
 
     function frame() {
       progress++;
       const t = Math.min(progress / duration, 1);
-      const ease = 1 - Math.pow(1 - t, 3); // easeOutCubic
+      const ease = 1 - Math.pow(1 - t, 3);
 
-      // 清除数据区域
-      // 重绘整个 canvas 是不行的，所以我们在数据层上面画
-      // 简化：直接画最终结果（渐现效果）
-      ctx.save();
+      // 清除画布，重绘静态元素
+      ctx.clearRect(0, 0, size, size);
+      drawStatic(params);
 
-      const n = dims.length;
+      // 计算数据点
       const points = dims.map((dim, i) => {
         const angle = startAngle + angleStep * i;
         const value = (scores[dim] / 100) * radius * ease;
-        return {
-          x: cx + Math.cos(angle) * value,
-          y: cy + Math.sin(angle) * value
-        };
+        return { x: cx + Math.cos(angle) * value, y: cy + Math.sin(angle) * value };
       });
 
-      // 填充
+      // 填充区域
       ctx.beginPath();
-      points.forEach((p, i) => {
-        if (i === 0) ctx.moveTo(p.x, p.y);
-        else ctx.lineTo(p.x, p.y);
-      });
+      points.forEach((p, i) => { if (i === 0) ctx.moveTo(p.x, p.y); else ctx.lineTo(p.x, p.y); });
       ctx.closePath();
-
       const gradient = ctx.createRadialGradient(cx, cy, 0, cx, cy, radius);
       gradient.addColorStop(0, color.from + '60');
       gradient.addColorStop(1, color.to + '30');
       ctx.fillStyle = gradient;
       ctx.fill();
-
-      // 边线
       ctx.strokeStyle = color.from;
       ctx.lineWidth = 2;
       ctx.stroke();
@@ -715,37 +771,22 @@ window.SoulUI = (() => {
         ctx.stroke();
       });
 
-      ctx.restore();
-
-      if (t < 1) {
-        requestAnimationFrame(frame);
-      }
+      if (t < 1) requestAnimationFrame(frame);
     }
 
-    // 延迟启动动画
-    setTimeout(() => requestAnimationFrame(frame), 300);
+    // 先画一帧静态的，延迟后启动动画
+    drawStatic(params);
+    setTimeout(() => { progress = 0; requestAnimationFrame(frame); }, 300);
   }
 
   function animateDimensionBars() {
-    const bars = document.querySelectorAll('.dim-bar-fill');
-    bars.forEach((bar, i) => {
-      setTimeout(() => {
-        bar.style.transition = 'width 0.8s ease-out';
-        bar.style.width = bar.parentElement.dataset.target || bar.style.width;
-      }, 200 + i * 100);
-    });
-
-    // 设置目标宽度
+    // 先设置目标宽度，再启动动画
     const cards = document.querySelectorAll('.dim-card');
     cards.forEach(card => {
       const score = card.querySelector('.dim-score');
       const bar = card.querySelector('.dim-bar-fill');
       if (score && bar) {
-        const val = parseInt(score.textContent);
-        bar.parentElement.dataset.target = val + '%';
-        setTimeout(() => {
-          bar.style.width = val + '%';
-        }, 500);
+        bar.style.width = parseInt(score.textContent) + '%';
       }
     });
   }
@@ -802,6 +843,13 @@ window.SoulUI = (() => {
     window.addEventListener('resize', () => {
       canvas.width = window.innerWidth * dpr;
       canvas.height = window.innerHeight * dpr;
+      // 重算星星坐标
+      const w = window.innerWidth;
+      const h = window.innerHeight;
+      stars.forEach(star => {
+        star.x = Math.random() * w;
+        star.y = Math.random() * h;
+      });
     });
   }
 
@@ -818,6 +866,7 @@ window.SoulUI = (() => {
   }
 
   function restart() {
+    clearSavedProgress();
     state.currentQuestion = 0;
     state.answers = [];
     state.result = null;

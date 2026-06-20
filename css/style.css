@@ -920,3 +920,47 @@ h1, h2, h3 {
     padding: 20px 20px;
   }
 }
+
+/* ═══ 确认按钮 ═══ */
+.btn-confirm-next {
+  display: block;
+  width: 100%;
+  padding: 14px;
+  margin-top: 16px;
+  font-size: 1rem;
+  color: #fff;
+  background: linear-gradient(135deg, var(--gold), #e6a756);
+  border: none;
+  border-radius: var(--radius-sm);
+  cursor: pointer;
+  transition: all 0.3s;
+  animation: fadeInUp 0.3s ease-out;
+}
+
+.btn-confirm-next:hover {
+  box-shadow: 0 4px 20px rgba(240, 194, 127, 0.3);
+  transform: translateY(-1px);
+}
+
+/* ═══ 无障碍：减少动画 ═══ */
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+  }
+
+  .fade-in,
+  .fade-in-up {
+    opacity: 1 !important;
+    transform: none !important;
+  }
+
+  .btn-start {
+    animation: none !important;
+  }
+
+  .welcome-icon {
+    animation: none !important;
+  }
+}
