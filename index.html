@@ -1,0 +1,85 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <title>灵魂解码 — 发现你的灵魂密码</title>
+  <meta name="description" content="基于现代心理学的在线灵魂问答与人格解读系统。回答问题，获取你的专属灵魂报告。">
+
+  <!-- Open Graph -->
+  <meta property="og:title" content="灵魂解码 — 发现你的灵魂密码">
+  <meta property="og:description" content="基于大五人格模型的灵魂问答，获取你的专属灵魂解读报告">
+  <meta property="og:type" content="website">
+
+  <!-- 样式 -->
+  <link rel="stylesheet" href="css/style.css">
+
+  <!-- Favicon（使用 emoji） -->
+  <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🔮</text></svg>">
+</head>
+<body>
+
+  <!-- 星空背景 -->
+  <canvas id="starfield"></canvas>
+
+  <!-- ═══ 欢迎页 ═══ -->
+  <div id="welcome-screen" class="screen active">
+    <div class="welcome-content">
+      <div class="welcome-icon">🔮</div>
+      <h1 class="welcome-title">灵魂解码</h1>
+      <p class="welcome-subtitle">
+        穿过认知之门，踏入意志熔炉<br>
+        潜入情感海洋，编织关系之网<br>
+        探索你的内心深渊
+      </p>
+      <button id="btn-start" class="btn-start">开始探索灵魂</button>
+
+      <div class="disclaimer-top">
+        ⚠️ 本测试基于公开心理学模型（大五人格 OCEAN）设计，仅供娱乐和自我探索参考，不构成任何专业心理评估、诊断或治疗建议。如有心理健康问题，请咨询专业心理咨询师。
+      </div>
+    </div>
+  </div>
+
+  <!-- ═══ 答题页 ═══ -->
+  <div id="quiz-screen" class="screen">
+    <div class="quiz-header">
+      <div class="progress-wrapper">
+        <div class="progress-track">
+          <div id="progress-bar" class="progress-bar"></div>
+        </div>
+        <span id="progress-text" class="progress-text">1 / 28</span>
+      </div>
+    </div>
+    <div class="btn-back-wrapper">
+      <button id="btn-back" class="btn-back" style="visibility:hidden">← 上一题</button>
+    </div>
+    <div id="question-area" class="question-area"></div>
+  </div>
+
+  <!-- ═══ 加载页 ═══ -->
+  <div id="loading-screen" class="screen">
+    <canvas id="loading-canvas"></canvas>
+    <p class="loading-text">正在解读你的灵魂密码...</p>
+  </div>
+
+  <!-- ═══ 报告页 ═══ -->
+  <div id="report-screen" class="screen">
+    <div id="report-container"></div>
+
+    <div class="report-actions">
+      <button id="btn-restart" class="btn-restart">重新测试</button>
+      <button id="btn-share" class="btn-share">📋 复制链接</button>
+      <button id="btn-save" class="btn-save">📸 保存图片</button>
+    </div>
+  </div>
+
+  <!-- ═══ JavaScript ═══ -->
+  <script src="js/questions.js"></script>
+  <script src="js/scoring.js"></script>
+  <script src="js/report.js"></script>
+  <script src="js/webhook.js"></script>
+  <script src="js/share.js"></script>
+  <script src="js/ui.js"></script>
+
+</body>
+</html>

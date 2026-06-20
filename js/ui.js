@@ -1,0 +1,852 @@
+/**
+ * ui.js — 灵魂解码 UI 控制模块
+ * 页面状态管理、题目展示、动画控制
+ */
+
+window.SoulUI = (() => {
+
+  // ═══ 状态 ═══
+  const state = {
+    currentQuestion: 0,
+    answers: [],        // [{questionId, choice}]
+    result: null,       // scoring result
+    report: null,       // report object
+    phase: 'welcome'    // welcome | quiz | loading | report
+  };
+
+  // ═══ DOM 引用（运行时绑定） ═══
+  let els = {};
+
+  /**
+   * 初始化
+   */
+  function init() {
+    cacheElements();
+    bindEvents();
+    drawStarfield();
+
+    // 检查是否从分享链接进入
+    const shared = window.SoulShare.parseShareLink();
+    if (shared) {
+      showSharedReport(shared);
+    }
+  }
+
+  function cacheElements() {
+    els = {
+      welcome: document.getElementById('welcome-screen'),
+      quiz: document.getElementById('quiz-screen'),
+      loading: document.getElementById('loading-screen'),
+      report: document.getElementById('report-screen'),
+      progressBar: document.getElementById('progress-bar'),
+      progressText: document.getElementById('progress-text'),
+      questionArea: document.getElementById('question-area'),
+      btnStart: document.getElementById('btn-start'),
+      btnBack: document.getElementById('btn-back'),
+      btnRestart: document.getElementById('btn-restart'),
+      btnShare: document.getElementById('btn-share'),
+      btnSave: document.getElementById('btn-save'),
+      reportContainer: document.getElementById('report-container'),
+      canvas: document.getElementById('starfield')
+    };
+  }
+
+  function bindEvents() {
+    els.btnStart.addEventListener('click', startQuiz);
+    els.btnBack.addEventListener('click', goBack);
+    els.btnRestart.addEventListener('click', restart);
+    els.btnShare.addEventListener('click', shareReport);
+    els.btnSave.addEventListener('click', saveReport);
+
+    // 触摸优化
+    document.addEventListener('touchstart', () => {}, { passive: true });
+  }
+
+  // ═══ 页面切换 ═══
+
+  function showScreen(phase) {
+    state.phase = phase;
+    ['welcome', 'quiz', 'loading', 'report'].forEach(s => {
+      els[s].classList.toggle('active', s === phase);
+    });
+  }
+
+  // ═══ 欢迎页 ═══
+
+  function startQuiz() {
+    state.currentQuestion = 0;
+    state.answers = [];
+    showScreen('quiz');
+    renderQuestion();
+  }
+
+  // ═══ 答题页 ═══
+
+  function renderQuestion() {
+    const q = window.SOUL_QUESTIONS[state.currentQuestion];
+    if (!q) return;
+
+    // 更新进度
+    const total = window.SOUL_QUESTIONS.length;
+    const pct = Math.round((state.currentQuestion / total) * 100);
+    els.progressBar.style.width = pct + '%';
+    els.progressText.textContent = `${state.currentQuestion + 1} / ${total}`;
+
+    // 返回按钮可见性
+    els.btnBack.style.visibility = state.currentQuestion > 0 ? 'visible' : 'hidden';
+
+    // 渲染题目
+    const area = els.questionArea;
+    area.innerHTML = '';
+
+    const card = document.createElement('div');
+    card.className = 'question-card fade-in';
+
+    // 维度标签
+    const dimLabel = document.createElement('div');
+    dimLabel.className = 'dimension-badge';
+    dimLabel.textContent = q.dimension;
+    card.appendChild(dimLabel);
+
+    // 题目文本
+    const title = document.createElement('h2');
+    title.className = 'question-text';
+    title.textContent = q.text;
+    card.appendChild(title);
+
+    // 选项
+    const optionsEl = document.createElement('div');
+
+    if (q.type === 'scenario') {
+      optionsEl.className = 'options-grid';
+      q.options.forEach(opt => {
+        const btn = document.createElement('button');
+        btn.className = 'option-card';
+        btn.dataset.id = opt.id;
+        btn.innerHTML = `<span class="option-id">${opt.id}</span><span class="option-text">${opt.text}</span>`;
+        btn.addEventListener('click', () => selectOption(q.id, opt.id));
+        optionsEl.appendChild(btn);
+      });
+    } else if (q.type === 'likert') {
+      optionsEl.className = 'options-likert';
+      q.options.forEach(opt => {
+        const btn = document.createElement('button');
+        btn.className = 'option-likert';
+        btn.dataset.id = opt.id;
+        btn.innerHTML = `<span class="likert-num">${opt.id}</span><span class="likert-text">${opt.text}</span>`;
+        btn.addEventListener('click', () => selectOption(q.id, opt.id));
+        optionsEl.appendChild(btn);
+      });
+    } else if (q.type === 'ranking') {
+      optionsEl.className = 'options-ranking';
+      optionsEl.innerHTML = '<p class="ranking-hint">拖拽排列，最上面 = 最重要</p>';
+
+      const list = document.createElement('div');
+      list.className = 'ranking-list';
+      list.id = 'ranking-list';
+
+      q.options.forEach(opt => {
+        const item = document.createElement('div');
+        item.className = 'ranking-item';
+        item.draggable = true;
+        item.dataset.id = opt.id;
+        item.innerHTML = `<span class="rank-handle">☰</span><span class="rank-text">${opt.text}</span>`;
+        list.appendChild(item);
+      });
+
+      optionsEl.appendChild(list);
+
+      const confirmBtn = document.createElement('button');
+      confirmBtn.className = 'btn-confirm-ranking';
+      confirmBtn.textContent = '确认排序';
+      confirmBtn.addEventListener('click', () => confirmRanking(q.id));
+      optionsEl.appendChild(confirmBtn);
+
+      // 等 DOM 渲染后再绑定拖拽
+      requestAnimationFrame(() => initDragSort(list));
+    }
+
+    card.appendChild(optionsEl);
+    area.appendChild(card);
+
+    // 恢复之前的选择（如果有的话）
+    const existing = state.answers.find(a => a.questionId === q.id);
+    if (existing && q.type !== 'ranking') {
+      const btn = area.querySelector(`[data-id="${existing.choice}"]`);
+      if (btn) btn.classList.add('selected');
+    }
+  }
+
+  function selectOption(questionId, choice) {
+    // 更新答案
+    const idx = state.answers.findIndex(a => a.questionId === questionId);
+    if (idx >= 0) {
+      state.answers[idx].choice = choice;
+    } else {
+      state.answers.push({ questionId, choice });
+    }
+
+    // 视觉反馈
+    const q = window.SOUL_QUESTIONS.find(q => q.id === questionId);
+    const containerClass = q.type === 'scenario' ? '.option-card' : '.option-likert';
+    document.querySelectorAll(containerClass).forEach(el => {
+      el.classList.toggle('selected', String(el.dataset.id) === String(choice));
+    });
+
+    // 延迟跳转下一题
+    setTimeout(() => {
+      if (state.currentQuestion < window.SOUL_QUESTIONS.length - 1) {
+        state.currentQuestion++;
+        const card = document.querySelector('.question-card');
+        if (card) {
+          card.classList.remove('fade-in');
+          card.classList.add('slide-out-left');
+          setTimeout(() => renderQuestion(), 300);
+        } else {
+          renderQuestion();
+        }
+      } else {
+        finishQuiz();
+      }
+    }, 400);
+  }
+
+  function confirmRanking(questionId) {
+    const list = document.getElementById('ranking-list');
+    if (!list) return;
+
+    const order = Array.from(list.children).map(item => item.dataset.id);
+    const idx = state.answers.findIndex(a => a.questionId === questionId);
+    if (idx >= 0) {
+      state.answers[idx].choice = order;
+    } else {
+      state.answers.push({ questionId, choice: order });
+    }
+
+    // 跳转
+    if (state.currentQuestion < window.SOUL_QUESTIONS.length - 1) {
+      state.currentQuestion++;
+      renderQuestion();
+    } else {
+      finishQuiz();
+    }
+  }
+
+  function goBack() {
+    if (state.currentQuestion > 0) {
+      state.currentQuestion--;
+      renderQuestion();
+    }
+  }
+
+  // ═══ 拖拽排序 ═══
+
+  function initDragSort(container) {
+    let dragItem = null;
+
+    container.addEventListener('dragstart', e => {
+      dragItem = e.target.closest('.ranking-item');
+      if (dragItem) {
+        dragItem.classList.add('dragging');
+        e.dataTransfer.effectAllowed = 'move';
+      }
+    });
+
+    container.addEventListener('dragend', e => {
+      if (dragItem) {
+        dragItem.classList.remove('dragging');
+        dragItem = null;
+        updateRankNumbers(container);
+      }
+    });
+
+    container.addEventListener('dragover', e => {
+      e.preventDefault();
+      const afterElement = getDragAfterElement(container, e.clientY);
+      if (dragItem) {
+        if (afterElement) {
+          container.insertBefore(dragItem, afterElement);
+        } else {
+          container.appendChild(dragItem);
+        }
+      }
+    });
+
+    // 触摸拖拽
+    let touchItem = null;
+    let touchClone = null;
+
+    container.addEventListener('touchstart', e => {
+      const item = e.target.closest('.ranking-item');
+      if (!item) return;
+      touchItem = item;
+      item.classList.add('dragging');
+    }, { passive: true });
+
+    container.addEventListener('touchmove', e => {
+      if (!touchItem) return;
+      e.preventDefault();
+      const touch = e.touches[0];
+      const afterElement = getDragAfterElement(container, touch.clientY);
+      if (afterElement) {
+        container.insertBefore(touchItem, afterElement);
+      } else {
+        container.appendChild(touchItem);
+      }
+    }, { passive: false });
+
+    container.addEventListener('touchend', () => {
+      if (touchItem) {
+        touchItem.classList.remove('dragging');
+        touchItem = null;
+        updateRankNumbers(container);
+      }
+    });
+  }
+
+  function getDragAfterElement(container, y) {
+    const items = [...container.querySelectorAll('.ranking-item:not(.dragging)')];
+    return items.reduce((closest, child) => {
+      const box = child.getBoundingClientRect();
+      const offset = y - box.top - box.height / 2;
+      if (offset < 0 && offset > closest.offset) {
+        return { offset, element: child };
+      }
+      return closest;
+    }, { offset: Number.NEGATIVE_INFINITY }).element;
+  }
+
+  function updateRankNumbers(container) {
+    container.querySelectorAll('.ranking-item').forEach((item, i) => {
+      item.querySelector('.rank-handle').textContent = `${i + 1}.`;
+    });
+  }
+
+  // ═══ 完成答题 ═══
+
+  function finishQuiz() {
+    showScreen('loading');
+    startLoadingAnimation();
+
+    // 延迟计算（让用户看到加载动画）
+    setTimeout(async () => {
+      // 1. 评分
+      state.result = window.SoulScoring.evaluate(state.answers);
+
+      // 2. 生成报告
+      state.report = window.SoulReport.generate(state.result.scores, state.result.enneagram);
+
+      // 3. Webhook 推送（静默）
+      window.SoulWebhook.send(state.result, state.report, state.answers);
+
+      // 4. 渲染报告
+      stopLoadingAnimation();
+      renderReport();
+      showScreen('report');
+    }, 2800);
+  }
+
+  // ═══ 加载动画 ═══
+
+  let loadingAnimId = null;
+
+  function startLoadingAnimation() {
+    const canvas = document.getElementById('loading-canvas');
+    if (!canvas) return;
+    const ctx = canvas.getContext('2d');
+    canvas.width = canvas.offsetWidth * 2;
+    canvas.height = canvas.offsetHeight * 2;
+    ctx.scale(2, 2);
+
+    const w = canvas.offsetWidth;
+    const h = canvas.offsetHeight;
+    const cx = w / 2;
+    const cy = h / 2;
+    const particles = [];
+
+    for (let i = 0; i < 80; i++) {
+      const angle = Math.random() * Math.PI * 2;
+      const dist = 50 + Math.random() * 150;
+      particles.push({
+        angle,
+        dist,
+        speed: 0.005 + Math.random() * 0.01,
+        radius: 1 + Math.random() * 2,
+        shrink: 0.997,
+        color: `hsla(${250 + Math.random() * 60}, 70%, 70%, ${0.3 + Math.random() * 0.5})`
+      });
+    }
+
+    let frame = 0;
+    function animate() {
+      ctx.clearRect(0, 0, w, h);
+
+      particles.forEach(p => {
+        p.dist *= p.shrink;
+        if (p.dist < 5) {
+          p.dist = 50 + Math.random() * 150;
+          p.angle = Math.random() * Math.PI * 2;
+        }
+        p.angle += p.speed;
+
+        const x = cx + Math.cos(p.angle) * p.dist;
+        const y = cy + Math.sin(p.angle) * p.dist;
+
+        ctx.beginPath();
+        ctx.arc(x, y, p.radius, 0, Math.PI * 2);
+        ctx.fillStyle = p.color;
+        ctx.fill();
+      });
+
+      // 中心光点
+      const glowSize = 8 + Math.sin(frame * 0.05) * 3;
+      const gradient = ctx.createRadialGradient(cx, cy, 0, cx, cy, glowSize * 3);
+      gradient.addColorStop(0, 'rgba(240, 194, 127, 0.8)');
+      gradient.addColorStop(0.5, 'rgba(161, 140, 209, 0.3)');
+      gradient.addColorStop(1, 'rgba(161, 140, 209, 0)');
+      ctx.beginPath();
+      ctx.arc(cx, cy, glowSize * 3, 0, Math.PI * 2);
+      ctx.fillStyle = gradient;
+      ctx.fill();
+
+      frame++;
+      loadingAnimId = requestAnimationFrame(animate);
+    }
+    animate();
+  }
+
+  function stopLoadingAnimation() {
+    if (loadingAnimId) {
+      cancelAnimationFrame(loadingAnimId);
+      loadingAnimId = null;
+    }
+  }
+
+  // ═══ 渲染报告 ═══
+
+  function renderReport() {
+    const report = state.report;
+    const scores = state.result.scores;
+    const container = els.reportContainer;
+    container.innerHTML = '';
+
+    // 1. 灵魂总览
+    const overview = createSection('report-overview');
+    overview.innerHTML = `
+      <div class="soul-type-header">
+        <div class="soul-color-bar" style="background: linear-gradient(135deg, ${report.soulColor.from}, ${report.soulColor.to})"></div>
+        <h1 class="soul-type-title">${report.soulType}</h1>
+        <p class="soul-summary">${report.summary}</p>
+      </div>
+    `;
+    container.appendChild(overview);
+
+    // 2. 五维雷达图
+    const radar = createSection('report-radar');
+    radar.innerHTML = `
+      <h2 class="section-title">🌟 五维灵魂图谱</h2>
+      <div class="radar-wrapper">
+        <canvas id="radar-canvas" width="400" height="400"></canvas>
+      </div>
+      <div class="dimension-cards" id="dimension-cards"></div>
+    `;
+    container.appendChild(radar);
+
+    // 渲染维度卡片
+    const dimCards = radar.querySelector('#dimension-cards');
+    Object.keys(report.dimensions).forEach(dim => {
+      const d = report.dimensions[dim];
+      const card = document.createElement('div');
+      card.className = 'dim-card fade-in-up';
+      card.innerHTML = `
+        <div class="dim-header">
+          <span class="dim-icon">${d.icon}</span>
+          <span class="dim-name">${d.name}</span>
+          <span class="dim-score">${d.score}</span>
+        </div>
+        <div class="dim-bar"><div class="dim-bar-fill" style="width:0%; background: linear-gradient(90deg, ${report.soulColor.from}, ${report.soulColor.to})"></div></div>
+        <p class="dim-text">${d.text}</p>
+      `;
+      dimCards.appendChild(card);
+    });
+
+    // 组合洞察
+    const combo = document.createElement('div');
+    combo.className = 'combination-insight fade-in-up';
+    combo.innerHTML = `<p class="insight-text">💎 ${report.combination}</p>`;
+    dimCards.appendChild(combo);
+
+    // 3. 九型人格
+    const ennea = createSection('report-enneagram');
+    ennea.innerHTML = `
+      <h2 class="section-title">🎭 灵魂深处</h2>
+      <div class="enneagram-card">
+        <div class="enneagram-icon">${report.enneagram.icon}</div>
+        <h3 class="enneagram-name">${report.enneagram.name}</h3>
+        <p class="enneagram-subtitle">九型人格 · 第${report.enneagram.type}型</p>
+        <div class="enneagram-detail">
+          <div class="enneagram-item">
+            <span class="enneagram-label">🔥 核心动机</span>
+            <p>${report.enneagram.motivation}</p>
+          </div>
+          <div class="enneagram-item">
+            <span class="enneagram-label">💨 核心恐惧</span>
+            <p>${report.enneagram.fear}</p>
+          </div>
+          <div class="enneagram-item">
+            <span class="enneagram-label">🌱 成长方向</span>
+            <p>${report.enneagram.growth}</p>
+          </div>
+          <div class="enneagram-item">
+            <span class="enneagram-label">🤝 关系洞察</span>
+            <p>${report.enneagram.relation}</p>
+          </div>
+        </div>
+      </div>
+    `;
+    container.appendChild(ennea);
+
+    // 4. 灵魂暗面
+    const shadow = createSection('report-shadow');
+    shadow.innerHTML = `
+      <h2 class="section-title">🌑 灵魂暗面</h2>
+      <div class="shadow-card">
+        <p class="shadow-text">${report.shadow.text}</p>
+        <div class="shadow-detail">
+          <div class="shadow-item">
+            <span class="shadow-label">⚡ 内在冲突</span>
+            <p>${report.shadow.conflict}</p>
+          </div>
+          <div class="shadow-item">
+            <span class="shadow-label">🌊 压力反应</span>
+            <p>${report.shadow.stress}</p>
+          </div>
+        </div>
+      </div>
+    `;
+    container.appendChild(shadow);
+
+    // 5. 成长路径
+    const growth = createSection('report-growth');
+    let growthHTML = '<h2 class="section-title">🌱 灵魂成长路径</h2><div class="growth-list">';
+    report.growth.forEach((g, i) => {
+      growthHTML += `
+        <div class="growth-card fade-in-up" style="animation-delay: ${i * 0.15}s">
+          <h3 class="growth-title">${g.title}</h3>
+          <p class="growth-text">${g.text}</p>
+          <p class="growth-psych">📚 ${g.psychology}</p>
+        </div>
+      `;
+    });
+    growthHTML += '</div>';
+    growth.innerHTML = growthHTML;
+    container.appendChild(growth);
+
+    // 6. 灵魂共鸣
+    const resonance = createSection('report-resonance');
+    resonance.innerHTML = `
+      <h2 class="section-title">💫 灵魂共鸣</h2>
+      <div class="resonance-card">
+        <div class="resonance-compatible">
+          <span class="resonance-label">🤝 最契合的灵魂类型</span>
+          <div class="compatible-tags">
+            ${report.resonance.compatible.map(t => `<span class="compatible-tag">${t}</span>`).join('')}
+          </div>
+        </div>
+        <p class="resonance-advice">${report.resonance.advice}</p>
+        <div class="resonance-blessing">
+          <p class="blessing-text">「${report.resonance.blessing}」</p>
+        </div>
+      </div>
+      <div class="disclaimer">
+        <p>📋 本报告基于大五人格模型（OCEAN）和九型人格理论生成，仅供娱乐参考。<br>
+        心理学人格测评应由专业机构在规范环境下进行。<br>
+        如有需要，请拨打全国心理援助热线：400-161-9995</p>
+      </div>
+    `;
+    container.appendChild(resonance);
+
+    // 绘制雷达图
+    requestAnimationFrame(() => {
+      drawRadarChart(scores, report.soulColor);
+      animateDimensionBars();
+    });
+  }
+
+  function createSection(id) {
+    const section = document.createElement('section');
+    section.id = id;
+    section.className = 'report-section';
+    return section;
+  }
+
+  // ═══ 雷达图绘制 ═══
+
+  function drawRadarChart(scores, color) {
+    const canvas = document.getElementById('radar-canvas');
+    if (!canvas) return;
+
+    const dpr = window.devicePixelRatio || 1;
+    const size = 400;
+    canvas.width = size * dpr;
+    canvas.height = size * dpr;
+    canvas.style.width = size + 'px';
+    canvas.style.height = size + 'px';
+
+    const ctx = canvas.getContext('2d');
+    ctx.scale(dpr, dpr);
+
+    const cx = size / 2;
+    const cy = size / 2;
+    const radius = 150;
+    const dims = ['openness', 'conscientiousness', 'extraversion', 'agreeableness', 'neuroticism'];
+    const labels = ['开放性', '尽责性', '外向性', '宜人性', '神经质'];
+    const icons = ['✨', '🏛️', '🌊', '💚', '🌙'];
+    const n = dims.length;
+    const angleStep = (Math.PI * 2) / n;
+    const startAngle = -Math.PI / 2;
+
+    // 绘制网格线
+    for (let ring = 1; ring <= 5; ring++) {
+      const r = (radius / 5) * ring;
+      ctx.beginPath();
+      for (let i = 0; i <= n; i++) {
+        const angle = startAngle + angleStep * (i % n);
+        const x = cx + Math.cos(angle) * r;
+        const y = cy + Math.sin(angle) * r;
+        if (i === 0) ctx.moveTo(x, y);
+        else ctx.lineTo(x, y);
+      }
+      ctx.closePath();
+      ctx.strokeStyle = 'rgba(255, 255, 255, 0.08)';
+      ctx.lineWidth = 1;
+      ctx.stroke();
+    }
+
+    // 绘制轴线
+    for (let i = 0; i < n; i++) {
+      const angle = startAngle + angleStep * i;
+      ctx.beginPath();
+      ctx.moveTo(cx, cy);
+      ctx.lineTo(cx + Math.cos(angle) * radius, cy + Math.sin(angle) * radius);
+      ctx.strokeStyle = 'rgba(255, 255, 255, 0.1)';
+      ctx.lineWidth = 1;
+      ctx.stroke();
+    }
+
+    // 绘制标签
+    ctx.fillStyle = '#ccc';
+    ctx.font = '14px sans-serif';
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'middle';
+    for (let i = 0; i < n; i++) {
+      const angle = startAngle + angleStep * i;
+      const labelR = radius + 28;
+      const x = cx + Math.cos(angle) * labelR;
+      const y = cy + Math.sin(angle) * labelR;
+      ctx.fillText(icons[i] + ' ' + labels[i], x, y);
+
+      // 分数值
+      const scoreR = radius + 46;
+      const sx = cx + Math.cos(angle) * scoreR;
+      const sy = cy + Math.sin(angle) * scoreR;
+      ctx.fillStyle = '#f0c27f';
+      ctx.font = 'bold 13px sans-serif';
+      ctx.fillText(scores[dims[i]], sx, sy);
+      ctx.fillStyle = '#ccc';
+      ctx.font = '14px sans-serif';
+    }
+
+    // 绘制数据区域（带动画）
+    animateRadarFill(ctx, cx, cy, radius, dims, scores, startAngle, angleStep, color);
+  }
+
+  function animateRadarFill(ctx, cx, cy, radius, dims, scores, startAngle, angleStep, color) {
+    let progress = 0;
+    const duration = 40; // frames
+
+    function frame() {
+      progress++;
+      const t = Math.min(progress / duration, 1);
+      const ease = 1 - Math.pow(1 - t, 3); // easeOutCubic
+
+      // 清除数据区域
+      // 重绘整个 canvas 是不行的，所以我们在数据层上面画
+      // 简化：直接画最终结果（渐现效果）
+      ctx.save();
+
+      const n = dims.length;
+      const points = dims.map((dim, i) => {
+        const angle = startAngle + angleStep * i;
+        const value = (scores[dim] / 100) * radius * ease;
+        return {
+          x: cx + Math.cos(angle) * value,
+          y: cy + Math.sin(angle) * value
+        };
+      });
+
+      // 填充
+      ctx.beginPath();
+      points.forEach((p, i) => {
+        if (i === 0) ctx.moveTo(p.x, p.y);
+        else ctx.lineTo(p.x, p.y);
+      });
+      ctx.closePath();
+
+      const gradient = ctx.createRadialGradient(cx, cy, 0, cx, cy, radius);
+      gradient.addColorStop(0, color.from + '60');
+      gradient.addColorStop(1, color.to + '30');
+      ctx.fillStyle = gradient;
+      ctx.fill();
+
+      // 边线
+      ctx.strokeStyle = color.from;
+      ctx.lineWidth = 2;
+      ctx.stroke();
+
+      // 数据点
+      points.forEach(p => {
+        ctx.beginPath();
+        ctx.arc(p.x, p.y, 4, 0, Math.PI * 2);
+        ctx.fillStyle = color.from;
+        ctx.fill();
+        ctx.strokeStyle = '#fff';
+        ctx.lineWidth = 1.5;
+        ctx.stroke();
+      });
+
+      ctx.restore();
+
+      if (t < 1) {
+        requestAnimationFrame(frame);
+      }
+    }
+
+    // 延迟启动动画
+    setTimeout(() => requestAnimationFrame(frame), 300);
+  }
+
+  function animateDimensionBars() {
+    const bars = document.querySelectorAll('.dim-bar-fill');
+    bars.forEach((bar, i) => {
+      setTimeout(() => {
+        bar.style.transition = 'width 0.8s ease-out';
+        bar.style.width = bar.parentElement.dataset.target || bar.style.width;
+      }, 200 + i * 100);
+    });
+
+    // 设置目标宽度
+    const cards = document.querySelectorAll('.dim-card');
+    cards.forEach(card => {
+      const score = card.querySelector('.dim-score');
+      const bar = card.querySelector('.dim-bar-fill');
+      if (score && bar) {
+        const val = parseInt(score.textContent);
+        bar.parentElement.dataset.target = val + '%';
+        setTimeout(() => {
+          bar.style.width = val + '%';
+        }, 500);
+      }
+    });
+  }
+
+  // ═══ 星空背景 ═══
+
+  function drawStarfield() {
+    const canvas = els.canvas;
+    if (!canvas) return;
+
+    const dpr = window.devicePixelRatio || 1;
+    canvas.width = window.innerWidth * dpr;
+    canvas.height = window.innerHeight * dpr;
+    canvas.style.width = '100%';
+    canvas.style.height = '100%';
+
+    const ctx = canvas.getContext('2d');
+    ctx.scale(dpr, dpr);
+
+    const w = window.innerWidth;
+    const h = window.innerHeight;
+    const stars = [];
+    const starCount = window.innerWidth < 768 ? 80 : 150;
+
+    for (let i = 0; i < starCount; i++) {
+      stars.push({
+        x: Math.random() * w,
+        y: Math.random() * h,
+        radius: Math.random() * 1.5 + 0.3,
+        alpha: Math.random() * 0.8 + 0.2,
+        speed: Math.random() * 0.003 + 0.001,
+        phase: Math.random() * Math.PI * 2
+      });
+    }
+
+    let time = 0;
+    function animate() {
+      ctx.clearRect(0, 0, w, h);
+
+      stars.forEach(star => {
+        const alpha = star.alpha * (0.6 + 0.4 * Math.sin(time * star.speed + star.phase));
+        ctx.beginPath();
+        ctx.arc(star.x, star.y, star.radius, 0, Math.PI * 2);
+        ctx.fillStyle = `rgba(255, 255, 255, ${alpha})`;
+        ctx.fill();
+      });
+
+      time++;
+      requestAnimationFrame(animate);
+    }
+
+    animate();
+
+    window.addEventListener('resize', () => {
+      canvas.width = window.innerWidth * dpr;
+      canvas.height = window.innerHeight * dpr;
+    });
+  }
+
+  // ═══ 分享与重新开始 ═══
+
+  function shareReport() {
+    if (state.result && state.report) {
+      window.SoulShare.copyShareLink(state.result.scores, state.result.enneagram);
+    }
+  }
+
+  function saveReport() {
+    window.SoulShare.captureReport();
+  }
+
+  function restart() {
+    state.currentQuestion = 0;
+    state.answers = [];
+    state.result = null;
+    state.report = null;
+    showScreen('welcome');
+  }
+
+  // ═══ 共享链接报告 ═══
+
+  function showSharedReport(shared) {
+    showScreen('loading');
+    startLoadingAnimation();
+
+    setTimeout(() => {
+      const enneagram = window.SoulScoring.matchEnneagram(shared.scores);
+      state.result = { scores: shared.scores, enneagram };
+      state.report = window.SoulReport.generate(shared.scores, enneagram);
+      state.answers = [];
+
+      stopLoadingAnimation();
+      renderReport();
+      showScreen('report');
+    }, 1500);
+  }
+
+  return { init };
+})();
+
+// DOM Ready
+document.addEventListener('DOMContentLoaded', () => {
+  window.SoulUI.init();
+});
