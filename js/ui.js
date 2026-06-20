@@ -249,19 +249,8 @@ window.SoulUI = (() => {
       el.classList.toggle('selected', String(el.dataset.id) === String(choice));
     });
 
-    // 显示确认按钮（防止误触）
-    showConfirmButton(questionId);
-  }
-
-  function showConfirmButton(questionId) {
-    // 移除已有的确认按钮
-    const existing = document.querySelector('.btn-confirm-next');
-    if (existing) existing.remove();
-
-    const btn = document.createElement('button');
-    btn.className = 'btn-confirm-next';
-    btn.textContent = '确认 →';
-    btn.addEventListener('click', () => {
+    // 延迟跳转下一题
+    setTimeout(() => {
       saveProgress();
       if (state.currentQuestion < window.SOUL_QUESTIONS.length - 1) {
         state.currentQuestion++;
@@ -276,10 +265,7 @@ window.SoulUI = (() => {
       } else {
         finishQuiz();
       }
-    });
-
-    const area = document.getElementById('question-area');
-    if (area) area.appendChild(btn);
+    }, 400);
   }
 
   function confirmRanking(questionId) {
