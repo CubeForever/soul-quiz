@@ -82,15 +82,15 @@ window.SoulScoring = {
 
   /**
    * 原始分 → 百分制
-   * 使用 0.78 缓冲因子，补偿用户无法同时在每题取各维度最大值的约束
-   * 避免分数过度压缩在 40-60 区间
+   * 使用宽松归一化：分母取理论最大值的 62%，让典型用户的主维度能达 70-90 分
+   * 避免大量选项零分导致的得分压缩
    */
   normalizeScores(raw, max) {
     const result = {};
-    const BUFFER = 0.78;
+    const FACTOR = 0.62;
     this.DIMENSIONS.forEach(dim => {
-      const adjustedMax = max[dim] * BUFFER;
-      result[dim] = adjustedMax > 0 ? Math.min(100, Math.round((raw[dim] / adjustedMax) * 100)) : 50;
+      const baseline = Math.max(max[dim] * FACTOR, 1);
+      result[dim] = Math.min(95, Math.max(5, Math.round((raw[dim] / baseline) * 100)));
     });
     return result;
   },
