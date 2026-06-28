@@ -441,7 +441,7 @@ window.SoulReport = (() => {
 
     // 9. 共鸣
     const blessingIdx = (scores.openness + scores.neuroticism) % BLESSINGS.length;
-    const compatible = getCompatibleTypes(enneagram.type);
+    const compatible = getCompatibleTypes(enneagram.type, scores);
     const resonance = {
       compatible,
       advice: getRelationshipAdvice(scores.agreeableness, scores.extraversion),
@@ -499,19 +499,30 @@ window.SoulReport = (() => {
   }
 
   // ═══ 辅助：匹配类型 ═══
-  function getCompatibleTypes(type) {
-    const compatMap = {
-      1: ['温暖织者', '宁静使者'],
-      2: ['秩序守护者', '力量化身'],
-      3: ['灵魂诗人', '信念守卫'],
-      4: ['光芒追寻者', '自由旅人'],
-      5: ['自由旅人', '灵魂诗人'],
-      6: ['力量化身', '温暖织者'],
-      7: ['智慧守望者', '秩序守护者'],
-      8: ['温暖织者', '信念守卫'],
-      9: ['秩序守护者', '光芒追寻者']
-    };
-    return compatMap[type] || ['灵魂旅人', '智慧守望者'];
+  function getCompatibleTypes(type, scores) {
+    // 基于用户实际得分，动态计算最契合的九型人格类型
+    // 原理：找与用户得分模式"互补"的类型——用户较弱的维度，对方较强
+    const allTypes = window.SoulScoring.getEnneagramPatterns();
+
+    // 排除自身
+    const candidates = allTypes.filter(t => t.type !== type);
+
+    // 计算互补分：用户得分越低的维度 × 对方权重越高 = 越互补
+    const complementaryScores = candidates.map(t => {
+      let score = 0;
+      const dimKeys = ['openness', 'conscientiousness', 'extraversion', 'agreeableness', 'neuroticism'];
+      dimKeys.forEach(dim => {
+        const userScore = scores[dim] || 50;
+        const weight = (t.w && t.w[dim] && t.w[dim].w) || 0.5;
+        // 互补评分 = 用户偏弱(score越低) × 对方该维度的权重越高
+        score += (100 - userScore) * weight;
+      });
+      return { type: t, score };
+    });
+
+    // 按互补分从高到低排序，取前 2 个
+    const best = complementaryScores.sort((a, b) => b.score - a.score).slice(0, 2);
+    return best.map(t => t.type.name);
   }
 
   // ═══ 辅助：关系建议 ═══

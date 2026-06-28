@@ -16,9 +16,23 @@ window.SoulShare = {
     const tip = this.showTip('正在生成分享图片...');
 
     try {
-      // 动态加载 html2canvas
+      // 动态加载 html2canvas（带超时 + 备用 CDN）
       if (!window.html2canvas) {
-        await this.loadScript('https://cdn.jsdelivr.net/npm/html2canvas@1.4.1/dist/html2canvas.min.js');
+        const CDNS = [
+          'https://cdn.jsdelivr.net/npm/html2canvas@1.4.1/dist/html2canvas.min.js',
+          'https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js'
+        ];
+        let loaded = false;
+        for (const url of CDNS) {
+          try {
+            await this.loadScript(url, 8000);
+            loaded = true;
+            break;
+          } catch (e) {
+            console.warn('[SoulShare] CDN 加载失败，尝试备用源:', url, e.message);
+          }
+        }
+        if (!loaded) throw new Error('所有 CDN 加载失败');
       }
 
       const canvas = await html2canvas(el, {
@@ -44,8 +58,8 @@ window.SoulShare = {
 
     } catch (e) {
       console.error('截图失败:', e);
-      this.updateTip(tip, '❌ 截图失败，请长屏截图');
-      setTimeout(() => tip.remove(), 3000);
+      this.updateTip(tip, '📱 截图生成失败，请使用系统截屏功能（音量键+电源键）');
+      setTimeout(() => tip.remove(), 4000);
     }
   },
 
@@ -64,6 +78,22 @@ window.SoulShare = {
   },
 
   /**
+   * 生成链接签名
+   */
+  _signData(data) {
+    // 简单 HMAC 风格签名：内容 + 固定密钥的 SHA-256 模拟
+    // 注意：这是前端防篡改，非加密安全
+    const str = JSON.stringify(data) + 'soul_secret_2026';
+    let hash = 0;
+    for (let i = 0; i < str.length; i++) {
+      const chr = str.charCodeAt(i);
+      hash = ((hash << 5) - hash) + chr;
+      hash |= 0;
+    }
+    return Math.abs(hash).toString(36);
+  },
+
+  /**
    * 复制结果链接（使用 URL hash 存储关键数据）
    */
   copyShareLink(scores, enneagram) {
@@ -71,6 +101,7 @@ window.SoulShare = {
       s: [scores.openness, scores.conscientiousness, scores.extraversion, scores.agreeableness, scores.neuroticism],
       e: enneagram.type
     };
+    data.k = this._signData(data);
     const hash = btoa(JSON.stringify(data));
     const url = `${location.origin}${location.pathname}#r=${hash}`;
 
@@ -98,6 +129,9 @@ window.SoulShare = {
     if (!hash.startsWith('#r=')) return null;
     try {
       const data = JSON.parse(atob(hash.slice(3)));
+      // 验证签名
+      const expected = this._signData(data);
+      if (data.k !== expected) return null;
       return {
         scores: {
           openness: data.s[0],
@@ -114,14 +148,15 @@ window.SoulShare = {
   },
 
   /**
-   * 动态加载外部脚本
+   * 动态加载外部脚本（带超时）
    */
-  loadScript(src) {
+  loadScript(src, timeoutMs = 10000) {
     return new Promise((resolve, reject) => {
+      const timer = setTimeout(() => reject(new Error('加载超时')), timeoutMs);
       const script = document.createElement('script');
       script.src = src;
-      script.onload = resolve;
-      script.onerror = reject;
+      script.onload = () => { clearTimeout(timer); resolve(); };
+      script.onerror = () => { clearTimeout(timer); reject(new Error('加载失败')); };
       document.head.appendChild(script);
     });
   },

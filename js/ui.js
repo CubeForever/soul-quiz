@@ -3,6 +3,19 @@
  * 页面状态管理、题目展示、动画控制
  */
 
+// ═══ 全局错误边界 ═══
+window.addEventListener('error', function(e) {
+  console.error('[SoulUI] 全局未捕获错误:', e.error || e.message || e);
+  SoulUI.showError('页面遇到了一个意外错误，请刷新页面重试。如问题持续，请联系管理员。');
+  return true;
+});
+
+window.addEventListener('unhandledrejection', function(e) {
+  console.error('[SoulUI] 未处理的 Promise 拒绝:', e.reason);
+  SoulUI.showError('页面请求失败，请检查网络后刷新重试。');
+  return true;
+});
+
 window.SoulUI = (() => {
 
   // ═══ 状态 ═══
@@ -298,68 +311,61 @@ window.SoulUI = (() => {
     }
   }
 
-  // ═══ 拖拽排序 ═══
+  // ═══ 拖拽排序（PointerEvent 统一触屏/鼠标） ═══
 
   function initDragSort(container) {
     let dragItem = null;
+    let isPointerDown = false;
 
-    container.addEventListener('dragstart', e => {
-      dragItem = e.target.closest('.ranking-item');
-      if (dragItem) {
-        dragItem.classList.add('dragging');
-        e.dataTransfer.effectAllowed = 'move';
-      }
-    });
-
-    container.addEventListener('dragend', e => {
-      if (dragItem) {
-        dragItem.classList.remove('dragging');
-        dragItem = null;
-        updateRankNumbers(container);
-      }
-    });
-
-    container.addEventListener('dragover', e => {
-      e.preventDefault();
-      const afterElement = getDragAfterElement(container, e.clientY);
-      if (dragItem) {
-        if (afterElement) {
-          container.insertBefore(dragItem, afterElement);
-        } else {
-          container.appendChild(dragItem);
-        }
-      }
-    });
-
-    // 触摸拖拽
-    let touchItem = null;
-    let touchClone = null;
-
+    // 阻止页面在拖拽时滚动/缩放
     container.addEventListener('touchstart', e => {
-      const item = e.target.closest('.ranking-item');
-      if (!item) return;
-      touchItem = item;
-      item.classList.add('dragging');
+      if (e.target.closest('.ranking-item')) {
+        // iOS Safari 需要主动阻止默认行为才能抑制滚动
+      }
     }, { passive: true });
 
-    container.addEventListener('touchmove', e => {
-      if (!touchItem) return;
-      e.preventDefault();
-      const touch = e.touches[0];
-      const afterElement = getDragAfterElement(container, touch.clientY);
-      if (afterElement) {
-        container.insertBefore(touchItem, afterElement);
-      } else {
-        container.appendChild(touchItem);
-      }
-    }, { passive: false });
+    container.addEventListener('pointerdown', e => {
+      const item = e.target.closest('.ranking-item');
+      if (!item) return;
+      dragItem = item;
+      isPointerDown = true;
+      item.classList.add('dragging');
+      item.setPointerCapture(e.pointerId);
+      // 阻止页面滑动
+      container.style.touchAction = 'none';
+    });
 
-    container.addEventListener('touchend', () => {
-      if (touchItem) {
-        touchItem.classList.remove('dragging');
-        touchItem = null;
-        updateRankNumbers(container);
+    container.addEventListener('pointermove', e => {
+      if (!dragItem || !isPointerDown) return;
+      e.preventDefault();
+      const afterElement = getDragAfterElement(container, e.clientY);
+      if (afterElement) {
+        container.insertBefore(dragItem, afterElement);
+      } else {
+        container.appendChild(dragItem);
       }
+    });
+
+    container.addEventListener('pointerup', e => {
+      if (!dragItem) return;
+      dragItem.classList.remove('dragging');
+      dragItem.releasePointerCapture(e.pointerId);
+      updateRankNumbers(container);
+      dragItem = null;
+      isPointerDown = false;
+      container.style.touchAction = '';
+    });
+
+    container.addEventListener('pointercancel', e => {
+      if (!dragItem) return;
+      dragItem.classList.remove('dragging');
+      if (dragItem.releasePointerCapture) {
+        dragItem.releasePointerCapture(e.pointerId);
+      }
+      updateRankNumbers(container);
+      dragItem = null;
+      isPointerDown = false;
+      container.style.touchAction = '';
     });
   }
 
@@ -384,26 +390,49 @@ window.SoulUI = (() => {
   // ═══ 完成答题 ═══
 
   function finishQuiz() {
-    clearSavedProgress();
-    showScreen('loading');
-    startLoadingAnimation();
+    try {
+      clearSavedProgress();
+      showScreen('loading');
+      startLoadingAnimation();
 
-    // 延迟计算（让用户看到加载动画）
-    setTimeout(async () => {
-      // 1. 评分
-      state.result = window.SoulScoring.evaluate(state.answers);
+      // 记录开始时间，保证最短动画展示
+      const loadStart = Date.now();
+      const MIN_LOAD_MS = 800;
 
-      // 2. 生成报告
-      state.report = window.SoulReport.generate(state.result.scores, state.result.enneagram);
+      // 延迟一小段时间让加载动画启动
+      setTimeout(async () => {
+        try {
+          // 1. 评分
+          state.result = window.SoulScoring.evaluate(state.answers);
 
-      // 3. Webhook 推送（静默）
-      window.SoulWebhook.send(state.result, state.report, state.answers);
+          // 2. 生成报告
+          state.report = window.SoulReport.generate(state.result.scores, state.result.enneagram);
 
-      // 4. 渲染报告
-      stopLoadingAnimation();
-      renderReport();
-      showScreen('report');
-    }, 2800);
+          // 3. Webhook 推送（静默）
+          window.SoulWebhook.send(state.result, state.report, state.answers);
+
+          // 4. 确保最短动画时间，避免闪屏
+          const elapsed = Date.now() - loadStart;
+          if (elapsed < MIN_LOAD_MS) {
+            await new Promise(r => setTimeout(r, MIN_LOAD_MS - elapsed));
+          }
+
+          // 5. 渲染报告
+          stopLoadingAnimation();
+          renderReport();
+          showScreen('report');
+        } catch (innerErr) {
+          console.error('[SoulUI] 报告生成失败:', innerErr);
+          stopLoadingAnimation();
+          SoulUI.showError('报告生成失败，请刷新页面重试。');
+          showScreen('welcome');
+        }
+      }, 300);
+    } catch (err) {
+      console.error('[SoulUI] finishQuiz 异常:', err);
+      SoulUI.showError('答题提交失败，请刷新页面重试。');
+      showScreen('welcome');
+    }
   }
 
   // ═══ 加载动画 ═══
@@ -485,7 +514,8 @@ window.SoulUI = (() => {
   // ═══ 渲染报告 ═══
 
   function renderReport() {
-    const report = state.report;
+    try {
+      const report = state.report;
     const scores = state.result.scores;
     const container = els.reportContainer;
     container.innerHTML = '';
@@ -631,6 +661,10 @@ window.SoulUI = (() => {
       drawRadarChart(scores, report.soulColor);
       animateDimensionBars();
     });
+    } catch (err) {
+      console.error('[SoulUI] 报告渲染失败:', err);
+      SoulUI.showError('报告渲染失败，请刷新页面重试。');
+    }
   }
 
   function createSection(id) {
@@ -842,16 +876,27 @@ window.SoulUI = (() => {
   // ═══ 分享与重新开始 ═══
 
   function shareReport() {
-    if (state.result && state.report) {
+    if (!state.result || !state.report) return;
+    try {
       window.SoulShare.copyShareLink(state.result.scores, state.result.enneagram);
+    } catch (err) {
+      console.error('[SoulUI] 分享失败:', err);
+      SoulUI.showError('链接复制失败，请手动复制页面地址。');
     }
   }
 
   function saveReport() {
-    window.SoulShare.captureReport();
+    window.SoulShare.captureReport().catch(err => {
+      console.error('[SoulUI] 保存图片失败:', err);
+    });
   }
 
-  function restart() {
+  async function restart() {
+    // 如果已有报告，先弹窗确认
+    if (state.result || state.report) {
+      const confirmed = await SoulUI.showConfirm('重新测试', '当前报告将丢失，确认重新开始？');
+      if (!confirmed) return;
+    }
     clearSavedProgress();
     state.currentQuestion = 0;
     state.answers = [];
@@ -867,21 +912,85 @@ window.SoulUI = (() => {
     startLoadingAnimation();
 
     setTimeout(() => {
-      const enneagram = window.SoulScoring.matchEnneagram(shared.scores);
-      state.result = { scores: shared.scores, enneagram };
-      state.report = window.SoulReport.generate(shared.scores, enneagram);
-      state.answers = [];
+      try {
+        const enneagram = window.SoulScoring.matchEnneagram(shared.scores);
+        state.result = { scores: shared.scores, enneagram };
+        state.report = window.SoulReport.generate(shared.scores, enneagram);
+        state.answers = [];
 
-      stopLoadingAnimation();
-      renderReport();
-      showScreen('report');
+        stopLoadingAnimation();
+        renderReport();
+        showScreen('report');
+      } catch (err) {
+        console.error('[SoulUI] 共享报告生成失败:', err);
+        stopLoadingAnimation();
+        SoulUI.showError('报告加载失败，请重新测试。');
+        showScreen('welcome');
+      }
     }, 1500);
   }
 
-  return { init };
+  return {
+    init,
+
+    /**
+     * 显示错误提示（静态方法，可在全局错误处理中调用）
+     */
+    showError(msg) {
+      const toast = document.getElementById('error-toast');
+      if (!toast) return;
+      toast.textContent = msg;
+      toast.style.display = 'block';
+      toast.style.animation = 'none';
+      // force reflow
+      void toast.offsetHeight;
+      toast.style.animation = 'fadeIn 0.3s';
+      clearTimeout(toast._hideTimer);
+      toast._hideTimer = setTimeout(() => { toast.style.display = 'none'; }, 6000);
+    },
+
+    /**
+     * 显示确认弹窗
+     * @param {string} title
+     * @param {string} text
+     * @returns {Promise<boolean>}
+     */
+    showConfirm(title, text) {
+      return new Promise(resolve => {
+        const overlay = document.createElement('div');
+        overlay.className = 'modal-overlay';
+        overlay.innerHTML = `
+          <div class="modal-box">
+            <div class="modal-title">${title}</div>
+            <div class="modal-text">${text}</div>
+            <div class="modal-actions">
+              <button class="modal-btn modal-btn-cancel">取消</button>
+              <button class="modal-btn modal-btn-confirm">确认</button>
+            </div>
+          </div>
+        `;
+        document.body.appendChild(overlay);
+        overlay.querySelector('.modal-btn-cancel').addEventListener('click', () => {
+          overlay.remove();
+          resolve(false);
+        });
+        overlay.querySelector('.modal-btn-confirm').addEventListener('click', () => {
+          overlay.remove();
+          resolve(true);
+        });
+      });
+    }
+  };
 })();
 
 // DOM Ready
 document.addEventListener('DOMContentLoaded', () => {
   window.SoulUI.init();
+
+  // 注册 Service Worker（PWA 离线支持）
+  if ('serviceWorker' in navigator) {
+    navigator.serviceWorker.register('./sw.js').catch(err => {
+      console.warn('[SoulUI] Service Worker 注册失败:', err);
+    });
+  }
 });

@@ -5,13 +5,22 @@
 
 window.SoulWebhook = (() => {
 
+  // ═══ 防抖与频率限制 ═══
+  let lastSendTime = 0;
+  let pendingTimer = null;
+  const DEBOUNCE_MS = 3000;   // 3 秒内不重复推送
+  const MAX_RETRIES = 1;
+
   // ═══ 管理员配置区 ═══
   const ADMIN_CONFIG = {
     // 你的 Webhook 地址（替换为实际地址）
+    // ⚠️ 安全提醒：前端代码中的 URL 对用户可见。
+    // 生产环境建议通过后端代理转发，而非直接暴露 Webhook URL。
     webhookUrl: '',
 
-    // 代理地址（解决 CORS，可选）
-    // 留空则直接调用 Webhook（仅同源或支持 CORS 时有效）
+    // 代理地址（解决 CORS，推荐）
+    // Cloudflare Worker 示例：https://your-worker.workers.dev
+    //  Worker 代码见 docs/plan.md 或项目文档
     proxyUrl: '',
 
     // 推送开关
@@ -179,10 +188,33 @@ window.SoulWebhook = (() => {
 
   /**
    * 发送 Webhook（静默，不阻塞用户体验）
+   * 内置防抖：3 秒内重复调用只发送一次
    */
   async function send(result, report, answers) {
     if (!ADMIN_CONFIG.enabled || !ADMIN_CONFIG.webhookUrl) return;
 
+    // 防抖：清除待发送任务
+    if (pendingTimer) {
+      clearTimeout(pendingTimer);
+      pendingTimer = null;
+    }
+
+    const now = Date.now();
+    if (now - lastSendTime < DEBOUNCE_MS) {
+      // 安排一次延迟发送（覆盖上次的）
+      pendingTimer = setTimeout(() => {
+        pendingTimer = null;
+        lastSendTime = Date.now();
+        doSend(result, report, answers);
+      }, DEBOUNCE_MS);
+      return;
+    }
+
+    lastSendTime = now;
+    await doSend(result, report, answers);
+  }
+
+  async function doSend(result, report, answers) {
     const payload = buildPayload(result, report, answers);
     const platform = detectPlatform(ADMIN_CONFIG.webhookUrl);
     let body;
@@ -196,16 +228,22 @@ window.SoulWebhook = (() => {
 
     const targetUrl = ADMIN_CONFIG.proxyUrl || ADMIN_CONFIG.webhookUrl;
 
-    try {
-      await fetch(targetUrl, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(body),
-        mode: 'no-cors'
-      });
-      console.log('[SoulWebhook] 推送完成');
-    } catch (e) {
-      console.warn('[SoulWebhook] 推送失败（不影响用户体验）:', e.message);
+    for (let attempt = 0; attempt <= MAX_RETRIES; attempt++) {
+      try {
+        await fetch(targetUrl, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(body),
+          mode: 'no-cors'
+        });
+        console.log('[SoulWebhook] 推送完成');
+        return;
+      } catch (e) {
+        console.warn(`[SoulWebhook] 推送失败（第${attempt + 1}次）:`, e.message);
+        if (attempt < MAX_RETRIES) {
+          await new Promise(r => setTimeout(r, 1000));
+        }
+      }
     }
   }
 

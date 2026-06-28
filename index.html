@@ -4,18 +4,47 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>灵魂解码 — 发现你的灵魂密码</title>
-  <meta name="description" content="基于现代心理学的在线灵魂问答与人格解读系统。回答问题，获取你的专属灵魂报告。">
+  <meta name="description" content="基于大五人格（OCEAN）和九型人格的在线灵魂问答，28道灵魂之问，获取你的专属灵魂解读报告。">
+  <meta name="keywords" content="灵魂解码,人格测试,大五人格,九型人格,心理测试,自我探索">
 
   <!-- Open Graph -->
   <meta property="og:title" content="灵魂解码 — 发现你的灵魂密码">
-  <meta property="og:description" content="基于大五人格模型的灵魂问答，获取你的专属灵魂解读报告">
+  <meta property="og:description" content="基于大五人格模型的灵魂问答，28道题解锁你的专属灵魂解读报告">
   <meta property="og:type" content="website">
+  <meta property="og:locale" content="zh_CN">
+
+  <!-- Twitter Card -->
+  <meta name="twitter:card" content="summary">
+  <meta name="twitter:title" content="灵魂解码 — 发现你的灵魂密码">
+  <meta name="twitter:description" content="28道灵魂之问，解锁你的专属人格解读报告">
+
+  <!-- Schema.org 结构化数据 -->
+  <script type="application/ld+json">
+  {
+    "@context": "https://schema.org",
+    "@type": "WebApplication",
+    "name": "灵魂解码",
+    "description": "基于大五人格（OCEAN）和九型人格的在线灵魂问答与人格解读系统",
+    "applicationCategory": "QuizApplication",
+    "operatingSystem": "All",
+    "browserRequirements": "Requires JavaScript",
+    "offers": {
+      "@type": "Offer",
+      "price": "0",
+      "priceCurrency": "CNY"
+    }
+  }
+  </script>
 
   <!-- 样式 -->
   <link rel="stylesheet" href="css/style.css">
 
-  <!-- Favicon（使用 emoji） -->
+  <!-- Favicon（使用 emoji）+ PWA -->
   <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🔮</text></svg>">
+  <link rel="manifest" href="manifest.json">
+  <meta name="theme-color" content="#1a1a4e">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-title" content="灵魂解码">
 </head>
 <body>
 
@@ -72,6 +101,9 @@
       <button id="btn-save" class="btn-save">📸 保存图片</button>
     </div>
   </div>
+
+  <!-- 错误提示容器 -->
+  <div id="error-toast" class="error-toast" style="display:none"></div>
 
   <!-- ═══ JavaScript ═══ -->
   <script src="js/questions.js"></script>

@@ -5,6 +5,23 @@
 
 window.SoulScoring = {
 
+  // ═══ 评分配置常量 ═══
+  CONFIG: {
+    // 归一化因子：数值越低，最终得分越高
+    // 0.62 时典型主维度可达 80-95 分，次维度 30-60 分
+    NORMALIZE_FACTOR: 0.72,
+    // 百分制上限/下限
+    MAX_PERCENT: 95,
+    MIN_PERCENT: 5,
+    // 5 档标签阈值（>=）
+    TAG_THRESHOLDS: [82, 62, 45, 28],
+    // 九型档位映射
+    ENNEAGRAM_HIGH: 70,
+    ENNEAGRAM_MID_LOW: 42,
+    // 排序题权重
+    RANK_MULTIPLIERS: [1, 0.6, 0.3, 0, 0]
+  },
+
   DIMENSIONS: ['openness', 'conscientiousness', 'extraversion', 'agreeableness', 'neuroticism'],
 
   /**
@@ -23,7 +40,7 @@ window.SoulScoring = {
         // 排序题：第1名得满分，第2名60%，第3名30%，第4-5名0
         const choice = answer.choice; // Array of option ids in ranked order
         if (!Array.isArray(choice)) return;
-        const multipliers = [1, 0.6, 0.3, 0, 0];
+        const multipliers = this.CONFIG.RANK_MULTIPLIERS;
         choice.forEach((optId, rank) => {
           const option = question.options.find(o => o.id === optId);
           if (!option) return;
@@ -87,10 +104,10 @@ window.SoulScoring = {
    */
   normalizeScores(raw, max) {
     const result = {};
-    const FACTOR = 0.72;
+    const cfg = this.CONFIG;
     this.DIMENSIONS.forEach(dim => {
-      const baseline = Math.max(max[dim] * FACTOR, 1);
-      result[dim] = Math.min(95, Math.max(5, Math.round((raw[dim] / baseline) * 100)));
+      const baseline = Math.max(max[dim] * cfg.NORMALIZE_FACTOR, 1);
+      result[dim] = Math.min(cfg.MAX_PERCENT, Math.max(cfg.MIN_PERCENT, Math.round((raw[dim] / baseline) * 100)));
     });
     return result;
   },
@@ -100,47 +117,47 @@ window.SoulScoring = {
    */
   generatePersonaTags(scores) {
     const tags = [];
+    const [T1, T2, T3, T4] = this.CONFIG.TAG_THRESHOLDS;
 
-    if (scores.openness >= 82) tags.push('梦想家');
-    else if (scores.openness >= 62) tags.push('探索者');
-    else if (scores.openness >= 45) tags.push('平衡者');
-    else if (scores.openness >= 28) tags.push('务实者');
+    if (scores.openness >= T1) tags.push('梦想家');
+    else if (scores.openness >= T2) tags.push('探索者');
+    else if (scores.openness >= T3) tags.push('平衡者');
+    else if (scores.openness >= T4) tags.push('务实者');
     else tags.push('守恒者');
 
-    if (scores.conscientiousness >= 82) tags.push('建造者');
-    else if (scores.conscientiousness >= 62) tags.push('规划师');
-    else if (scores.conscientiousness >= 45) tags.push('航行者');
-    else if (scores.conscientiousness >= 28) tags.push('随性者');
+    if (scores.conscientiousness >= T1) tags.push('建造者');
+    else if (scores.conscientiousness >= T2) tags.push('规划师');
+    else if (scores.conscientiousness >= T3) tags.push('航行者');
+    else if (scores.conscientiousness >= T4) tags.push('随性者');
     else tags.push('自由魂');
 
-    if (scores.extraversion >= 82) tags.push('发光体');
-    else if (scores.extraversion >= 62) tags.push('社交家');
-    else if (scores.extraversion >= 45) tags.push('适应者');
-    else if (scores.extraversion >= 28) tags.push('旁观者');
+    if (scores.extraversion >= T1) tags.push('发光体');
+    else if (scores.extraversion >= T2) tags.push('社交家');
+    else if (scores.extraversion >= T3) tags.push('适应者');
+    else if (scores.extraversion >= T4) tags.push('旁观者');
     else tags.push('独行者');
 
-    if (scores.agreeableness >= 82) tags.push('治愈者');
-    else if (scores.agreeableness >= 62) tags.push('守护者');
-    else if (scores.agreeableness >= 45) tags.push('协调者');
-    else if (scores.agreeableness >= 28) tags.push('直率者');
+    if (scores.agreeableness >= T1) tags.push('治愈者');
+    else if (scores.agreeableness >= T2) tags.push('守护者');
+    else if (scores.agreeableness >= T3) tags.push('协调者');
+    else if (scores.agreeableness >= T4) tags.push('直率者');
     else tags.push('守界者');
 
-    if (scores.neuroticism >= 82) tags.push('深感者');
-    else if (scores.neuroticism >= 62) tags.push('感应者');
-    else if (scores.neuroticism >= 45) tags.push('波澜者');
-    else if (scores.neuroticism >= 28) tags.push('沉稳者');
+    if (scores.neuroticism >= T1) tags.push('深感者');
+    else if (scores.neuroticism >= T2) tags.push('感应者');
+    else if (scores.neuroticism >= T3) tags.push('波澜者');
+    else if (scores.neuroticism >= T4) tags.push('沉稳者');
     else tags.push('平静者');
 
     return tags;
   },
 
   /**
-   * 匹配九型人格
+   * 九型人格五维模式数据（可被 report.js 共用）
+   * w: 权重(2=核心 1.5=重要 1=次要 0.5=弱相关), e: 期望档位
    */
-  matchEnneagram(scores) {
-    // 九型人格五维加权模式
-    // w: 权重(2=核心 1.5=重要 1=次要 0.5=弱相关), e: 期望档位
-    const patterns = [
+  getEnneagramPatterns() {
+    return [
       { type: 1, name: '秩序守护者', icon: '🎯', motivation: '追求正确与完美，希望世界井然有序', fear: '害怕犯错、堕落或变得腐败',
         w: { conscientiousness:{e:'high',w:2}, agreeableness:{e:'high',w:1.5}, neuroticism:{e:'mid',w:1}, openness:{e:'mid',w:1}, extraversion:{e:'mid',w:0.5} } },
       { type: 2, name: '温暖织者', icon: '🤲', motivation: '渴望被需要，通过给予爱来获得爱', fear: '害怕不被需要、不被爱',
@@ -160,8 +177,16 @@ window.SoulScoring = {
       { type: 9, name: '宁静使者', icon: '☁️', motivation: '追求内在平静与外在和谐', fear: '害怕冲突、失去连接',
         w: { agreeableness:{e:'high',w:2}, neuroticism:{e:'low',w:1.5}, extraversion:{e:'low',w:1.5}, openness:{e:'mid',w:1}, conscientiousness:{e:'mid',w:0.5} } }
     ];
+  },
 
-    const getLevel = (val) => val >= 70 ? 'high' : val >= 42 ? 'mid' : 'low';
+  /**
+   * 匹配九型人格
+   */
+  matchEnneagram(scores) {
+    const patterns = this.getEnneagramPatterns();
+
+    const cfg = this.CONFIG;
+    const getLevel = (val) => val >= cfg.ENNEAGRAM_HIGH ? 'high' : val >= cfg.ENNEAGRAM_MID_LOW ? 'mid' : 'low';
 
     let bestMatch = null;
     let bestScore = -Infinity;

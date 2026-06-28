@@ -1,0 +1,25 @@
+{
+  "name": "灵魂解码 — 发现你的灵魂密码",
+  "short_name": "灵魂解码",
+  "description": "基于大五人格（OCEAN）和九型人格的在线灵魂问答，28道灵魂之问，获取你的专属灵魂解读报告。",
+  "start_url": "index.html",
+  "display": "standalone",
+  "background_color": "#0a0a2e",
+  "theme_color": "#1a1a4e",
+  "orientation": "portrait",
+  "scope": "./",
+  "icons": [
+    {
+      "src": "data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 192 192'%3E%3Crect width='192' height='192' rx='32' fill='%231a1a4e'/%3E%3Ctext x='96' y='130' font-size='100' text-anchor='middle'%3E%F0%9F%94%AE%3C/text%3E%3C/svg%3E",
+      "sizes": "192x192",
+      "type": "image/svg+xml",
+      "purpose": "any maskable"
+    },
+    {
+      "src": "data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 512 512'%3E%3Crect width='512' height='512' rx='64' fill='%231a1a4e'/%3E%3Ctext x='256' y='350' font-size='240' text-anchor='middle'%3E%F0%9F%94%AE%3C/text%3E%3C/svg%3E",
+      "sizes": "512x512",
+      "type": "image/svg+xml",
+      "purpose": "any maskable"
+    }
+  ]
+}
