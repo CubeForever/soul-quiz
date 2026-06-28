@@ -398,6 +398,30 @@ h1, h2, h3 {
 }
 
 .rank-text {
+  flex: 1;
+}
+
+.ranking-item:hover .rank-btn-up,
+.ranking-item:hover .rank-btn-down,
+.ranking-item:focus-within .rank-btn-up,
+.ranking-item:focus-within .rank-btn-down {
+  opacity: 1;
+}
+
+.rank-btn-up,
+.rank-btn-down {
+  opacity: 0.4;
+  transition: opacity 0.2s;
+}
+
+@media (hover: none) {
+  .rank-btn-up,
+  .rank-btn-down {
+    opacity: 0.7;
+  }
+}
+
+.rank-text {
   font-size: 0.95rem;
 }
 

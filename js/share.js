@@ -103,7 +103,7 @@ window.SoulShare = {
     };
     data.k = this._signData(data);
     const hash = btoa(JSON.stringify(data));
-    const url = `${location.origin}${location.pathname}#r=${hash}`;
+    const url = `${window.location.origin}${window.location.pathname}#r=${hash}`;
 
     if (navigator.clipboard) {
       navigator.clipboard.writeText(url).then(() => {
@@ -125,13 +125,15 @@ window.SoulShare = {
    * 解析分享链接
    */
   parseShareLink() {
-    const hash = location.hash;
+    const hash = window.location.hash;
     if (!hash.startsWith('#r=')) return null;
     try {
       const data = JSON.parse(atob(hash.slice(3)));
-      // 验证签名
+      // 验证签名（去掉 k 字段后计算）
+      const sig = data.k;
+      delete data.k;
       const expected = this._signData(data);
-      if (data.k !== expected) return null;
+      if (sig !== expected) return null;
       return {
         scores: {
           openness: data.s[0],

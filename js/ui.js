@@ -3,6 +3,55 @@
  * 页面状态管理、题目展示、动画控制
  */
 
+// ═══ 安全 HTML 工具 ═══
+// 替代 innerHTML，防止 XSS
+function esc(str) {
+  if (str == null) return '';
+  return String(str).replace(/[&<>"']/g, function(c) {
+    return '&#' + c.charCodeAt(0) + ';';
+  });
+}
+
+// 安全创建 DOM 元素
+function el(tag, attrs, ...children) {
+  const e = document.createElement(tag);
+  if (attrs) {
+    Object.entries(attrs).forEach(function(_ref) {
+      var k = _ref[0], v = _ref[1];
+      if (k === 'className') { e.className = v; }
+      else if (k === 'dataset') { Object.assign(e.dataset, v); }
+      else if (k === 'style') { Object.assign(e.style, v); }
+      else if (v != null) { e.setAttribute(k, v); }
+    });
+  }
+  children.forEach(function(c) {
+    if (c instanceof Node) e.appendChild(c);
+    else if (c != null) e.appendChild(document.createTextNode(String(c)));
+  });
+  return e;
+}
+
+// 清空容器辅助
+function empty(el) {
+  while (el.firstChild) el.removeChild(el.firstChild);
+}
+
+// 安全 HTML 标签模板：自动转义所有插值变量，防止 XSS
+function html(strings) {
+  var result = strings[0];
+  for (var i = 1; i < arguments.length; i++) {
+    var val = arguments[i];
+    if (Array.isArray(val)) {
+      // 数组（如 map 结果）拼接前整体转义
+      result += val.map(function(v) { return esc(v); }).join('');
+    } else {
+      result += esc(val);
+    }
+    result += strings[i];
+  }
+  return result;
+}
+
 // ═══ 全局错误边界 ═══
 window.addEventListener('error', function(e) {
   console.error('[SoulUI] 全局未捕获错误:', e.error || e.message || e);
@@ -147,13 +196,16 @@ window.SoulUI = (() => {
     const pct = Math.round((state.currentQuestion / total) * 100);
     els.progressBar.style.width = pct + '%';
     els.progressText.textContent = `${state.currentQuestion + 1} / ${total}`;
+    // 更新无障碍进度值
+    const track = els.progressBar.parentElement;
+    if (track) track.setAttribute('aria-valuenow', pct);
 
     // 返回按钮可见性
     els.btnBack.style.visibility = state.currentQuestion > 0 ? 'visible' : 'hidden';
 
     // 渲染题目
     const area = els.questionArea;
-    area.innerHTML = '';
+    empty(area);
 
     const card = document.createElement('div');
     card.className = 'question-card fade-in';
@@ -179,7 +231,8 @@ window.SoulUI = (() => {
         const btn = document.createElement('button');
         btn.className = 'option-card';
         btn.dataset.id = opt.id;
-        btn.innerHTML = `<span class="option-id">${opt.id}</span><span class="option-text">${opt.text}</span>`;
+        btn.appendChild(el('span', {className:'option-id'}, opt.id));
+        btn.appendChild(el('span', {className:'option-text'}, opt.text));
         btn.addEventListener('click', () => selectOption(q.id, opt.id));
         optionsEl.appendChild(btn);
       });
@@ -189,24 +242,51 @@ window.SoulUI = (() => {
         const btn = document.createElement('button');
         btn.className = 'option-likert';
         btn.dataset.id = opt.id;
-        btn.innerHTML = `<span class="likert-num">${opt.id}</span><span class="likert-text">${opt.text}</span>`;
+        btn.appendChild(el('span', {className:'likert-num'}, opt.id));
+        btn.appendChild(el('span', {className:'likert-text'}, opt.text));
         btn.addEventListener('click', () => selectOption(q.id, opt.id));
         optionsEl.appendChild(btn);
       });
     } else if (q.type === 'ranking') {
       optionsEl.className = 'options-ranking';
-      optionsEl.innerHTML = '<p class="ranking-hint">拖拽排列，最上面 = 最重要</p>';
+      empty(optionsEl);
+      optionsEl.appendChild(el('p', {className:'ranking-hint'}, '拖拽排列，最上面 = 最重要'));
 
       const list = document.createElement('div');
       list.className = 'ranking-list';
       list.id = 'ranking-list';
+      list.setAttribute('role', 'listbox');
+      list.setAttribute('aria-label', '拖拽排序，使用上下方向键调整顺序');
 
-      q.options.forEach(opt => {
+      q.options.forEach((opt, idx) => {
         const item = document.createElement('div');
         item.className = 'ranking-item';
         item.draggable = true;
         item.dataset.id = opt.id;
-        item.innerHTML = `<span class="rank-handle">☰</span><span class="rank-text">${opt.text}</span>`;
+        item.setAttribute('role', 'option');
+        item.setAttribute('aria-posinset', idx + 1);
+        item.setAttribute('aria-setsize', q.options.length);
+        item.tabIndex = 0;
+
+        // 拖拽手柄
+        item.appendChild(el('span', {className:'rank-handle', 'aria-hidden':'true'}, '☰'));
+        item.appendChild(el('span', {className:'rank-text'}, opt.text));
+
+        // 上移/下移按钮（无障碍替代操作）
+        const btnUp = el('button', {
+          className:'rank-btn-up', 'aria-label':'上移此项',
+          type:'button', style:{background:'none', border:'none', color:'rgba(240,240,240,0.5)', cursor:'pointer', fontSize:'0.9rem', padding:'2px 6px'}
+        }, '▲');
+        const btnDown = el('button', {
+          className:'rank-btn-down', 'aria-label':'下移此项',
+          type:'button', style:{background:'none', border:'none', color:'rgba(240,240,240,0.5)', cursor:'pointer', fontSize:'0.9rem', padding:'2px 6px'}
+        }, '▼');
+
+        btnUp.addEventListener('click', function(e) { e.stopPropagation(); moveRankItem(item, -1, container); });
+        btnDown.addEventListener('click', function(e) { e.stopPropagation(); moveRankItem(item, 1, container); });
+
+        item.appendChild(btnUp);
+        item.appendChild(btnDown);
         list.appendChild(item);
       });
 
@@ -215,6 +295,7 @@ window.SoulUI = (() => {
       const confirmBtn = document.createElement('button');
       confirmBtn.className = 'btn-confirm-ranking';
       confirmBtn.textContent = '确认排序';
+      confirmBtn.setAttribute('aria-label', '确认当前排序结果并进入下一题');
       confirmBtn.addEventListener('click', () => confirmRanking(q.id));
       optionsEl.appendChild(confirmBtn);
 
@@ -367,6 +448,35 @@ window.SoulUI = (() => {
       isPointerDown = false;
       container.style.touchAction = '';
     });
+
+    // 键盘操作：上下方向键调整排序
+    container.addEventListener('keydown', e => {
+      const item = e.target.closest('.ranking-item');
+      if (!item) return;
+
+      if (e.key === 'ArrowUp' || e.key === 'ArrowDown') {
+        e.preventDefault();
+        moveRankItem(item, e.key === 'ArrowUp' ? -1 : 1, container);
+
+        updateRankNumbers(container);
+        item.focus();
+        return;
+      }
+
+      // Home / End 移到最前 / 最后
+      if (e.key === 'Home') {
+        e.preventDefault();
+        container.insertBefore(item, container.firstChild);
+        updateRankNumbers(container);
+        item.focus();
+      }
+      if (e.key === 'End') {
+        e.preventDefault();
+        container.appendChild(item);
+        updateRankNumbers(container);
+        item.focus();
+      }
+    });
   }
 
   function getDragAfterElement(container, y) {
@@ -383,8 +493,24 @@ window.SoulUI = (() => {
 
   function updateRankNumbers(container) {
     container.querySelectorAll('.ranking-item').forEach((item, i) => {
-      item.querySelector('.rank-handle').textContent = `${i + 1}.`;
+      item.querySelector('.rank-handle').textContent = '' + (i + 1) + '.';
     });
+  }
+
+  // 移动排序项（供上下按钮和键盘操作使用）
+  function moveRankItem(item, direction, container) {
+    const items = [...container.querySelectorAll('.ranking-item')];
+    const idx = items.indexOf(item);
+    if (idx < 0) return;
+
+    if (direction === -1 && idx > 0) {
+      container.insertBefore(item, items[idx - 1]);
+    } else if (direction === 1 && idx < items.length - 1) {
+      container.insertBefore(item, items[idx + 1].nextSibling);
+    } else {
+      return;
+    }
+    updateRankNumbers(container);
   }
 
   // ═══ 完成答题 ═══
@@ -522,7 +648,7 @@ window.SoulUI = (() => {
 
     // 1. 灵魂总览
     const overview = createSection('report-overview');
-    overview.innerHTML = `
+    overview.innerHTML = html`
       <div class="soul-type-header">
         <div class="soul-color-bar" style="background: linear-gradient(135deg, ${report.soulColor.from}, ${report.soulColor.to})"></div>
         <h1 class="soul-type-title">${report.soulType}</h1>
@@ -533,7 +659,7 @@ window.SoulUI = (() => {
 
     // 2. 五维雷达图
     const radar = createSection('report-radar');
-    radar.innerHTML = `
+    radar.innerHTML = html`
       <h2 class="section-title">🌟 五维灵魂图谱</h2>
       <div class="radar-wrapper">
         <canvas id="radar-canvas" width="400" height="400"></canvas>
@@ -548,7 +674,7 @@ window.SoulUI = (() => {
       const d = report.dimensions[dim];
       const card = document.createElement('div');
       card.className = 'dim-card fade-in-up';
-      card.innerHTML = `
+      card.innerHTML = html`
         <div class="dim-header">
           <span class="dim-icon">${d.icon}</span>
           <span class="dim-name">${d.name}</span>
@@ -563,12 +689,12 @@ window.SoulUI = (() => {
     // 组合洞察
     const combo = document.createElement('div');
     combo.className = 'combination-insight fade-in-up';
-    combo.innerHTML = `<p class="insight-text">💎 ${report.combination}</p>`;
+    combo.innerHTML = html`<p class="insight-text">💎 ${report.combination}</p>`;
     dimCards.appendChild(combo);
 
     // 3. 九型人格
     const ennea = createSection('report-enneagram');
-    ennea.innerHTML = `
+    ennea.innerHTML = html`
       <h2 class="section-title">🎭 灵魂深处</h2>
       <div class="enneagram-card">
         <div class="enneagram-icon">${report.enneagram.icon}</div>
@@ -598,7 +724,7 @@ window.SoulUI = (() => {
 
     // 4. 灵魂暗面
     const shadow = createSection('report-shadow');
-    shadow.innerHTML = `
+    shadow.innerHTML = html`
       <h2 class="section-title">🌑 灵魂暗面</h2>
       <div class="shadow-card">
         <p class="shadow-text">${report.shadow.text}</p>
@@ -618,29 +744,28 @@ window.SoulUI = (() => {
 
     // 5. 成长路径
     const growth = createSection('report-growth');
-    let growthHTML = '<h2 class="section-title">🌱 灵魂成长路径</h2><div class="growth-list">';
+    const growthTitle = el('h2', {className:'section-title'}, '🌱 灵魂成长路径');
+    const growthList = el('div', {className:'growth-list'});
     report.growth.forEach((g, i) => {
-      growthHTML += `
-        <div class="growth-card fade-in-up" style="animation-delay: ${i * 0.15}s">
-          <h3 class="growth-title">${g.title}</h3>
-          <p class="growth-text">${g.text}</p>
-          <p class="growth-psych">📚 ${g.psychology}</p>
-        </div>
-      `;
+      const card = el('div', {className:'growth-card fade-in-up', style:{animationDelay: (i * 0.15) + 's'}});
+      card.appendChild(el('h3', {className:'growth-title'}, g.title));
+      card.appendChild(el('p', {className:'growth-text'}, g.text));
+      card.appendChild(el('p', {className:'growth-psych'}, '📚 ', g.psychology));
+      growthList.appendChild(card);
     });
-    growthHTML += '</div>';
-    growth.innerHTML = growthHTML;
+    growth.appendChild(growthTitle);
+    growth.appendChild(growthList);
     container.appendChild(growth);
 
     // 6. 灵魂共鸣
     const resonance = createSection('report-resonance');
-    resonance.innerHTML = `
+    resonance.innerHTML = html`
       <h2 class="section-title">💫 灵魂共鸣</h2>
       <div class="resonance-card">
         <div class="resonance-compatible">
           <span class="resonance-label">🤝 最契合的灵魂类型</span>
           <div class="compatible-tags">
-            ${report.resonance.compatible.map(t => `<span class="compatible-tag">${t}</span>`).join('')}
+            ${report.resonance.compatible.map(function(t) { return html`<span class="compatible-tag">${t}</span>`; })}
           </div>
         </div>
         <p class="resonance-advice">${report.resonance.advice}</p>
@@ -959,7 +1084,7 @@ window.SoulUI = (() => {
       return new Promise(resolve => {
         const overlay = document.createElement('div');
         overlay.className = 'modal-overlay';
-        overlay.innerHTML = `
+        overlay.innerHTML = html`
           <div class="modal-box">
             <div class="modal-title">${title}</div>
             <div class="modal-text">${text}</div>

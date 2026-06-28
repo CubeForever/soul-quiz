@@ -61,7 +61,7 @@
         潜入情感海洋，编织关系之网<br>
         探索你的内心深渊
       </p>
-      <button id="btn-start" class="btn-start">开始探索灵魂</button>
+      <button id="btn-start" class="btn-start" aria-label="开始探索灵魂问答">开始探索灵魂</button>
 
       <div class="disclaimer-top">
         ⚠️ 本测试基于公开心理学模型（大五人格 OCEAN）设计，仅供娱乐和自我探索参考，不构成任何专业心理评估、诊断或治疗建议。如有心理健康问题，请咨询专业心理咨询师。
@@ -73,14 +73,14 @@
   <div id="quiz-screen" class="screen">
     <div class="quiz-header">
       <div class="progress-wrapper">
-        <div class="progress-track">
+        <div class="progress-track" role="progressbar" aria-valuenow="0" aria-valuemin="0" aria-valuemax="100" aria-label="答题进度">
           <div id="progress-bar" class="progress-bar"></div>
         </div>
         <span id="progress-text" class="progress-text">1 / 28</span>
       </div>
     </div>
     <div class="btn-back-wrapper">
-      <button id="btn-back" class="btn-back" style="visibility:hidden">← 上一题</button>
+      <button id="btn-back" class="btn-back" style="visibility:hidden" aria-label="返回上一题">← 上一题</button>
     </div>
     <div id="question-area" class="question-area"></div>
   </div>
@@ -96,14 +96,17 @@
     <div id="report-container"></div>
 
     <div class="report-actions">
-      <button id="btn-restart" class="btn-restart">重新测试</button>
-      <button id="btn-share" class="btn-share">📋 复制链接</button>
-      <button id="btn-save" class="btn-save">📸 保存图片</button>
+      <button id="btn-restart" class="btn-restart" aria-label="重新开始测试">重新测试</button>
+      <button id="btn-share" class="btn-share" aria-label="复制测试结果链接">📋 复制链接</button>
+      <button id="btn-save" class="btn-save" aria-label="保存测试报告为图片">📸 保存图片</button>
     </div>
   </div>
 
   <!-- 错误提示容器 -->
-  <div id="error-toast" class="error-toast" style="display:none"></div>
+  <div id="error-toast" class="error-toast" style="display:none" role="alert"></div>
+
+  <!-- 无障碍实时区域 -->
+  <div id="announce" class="sr-only" aria-live="polite" style="position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0,0,0,0)"></div>
 
   <!-- ═══ JavaScript ═══ -->
   <script src="js/questions.js"></script>
