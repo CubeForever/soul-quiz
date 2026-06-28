@@ -180,50 +180,68 @@ window.SoulScoring = {
   },
 
   /**
-   * 匹配九型人格
+   * 九型人格参考人群分布（基于题库特征的理论期望）
+   * 用于将用户得分转为相对位置（z-score），消除各维度天然分差
+   */
+  ENNEAGRAM_POPULATION_STATS: {
+    openness:          { mean: 65, std: 12 },
+    conscientiousness: { mean: 57, std: 12 },
+    extraversion:      { mean: 51, std: 12 },
+    agreeableness:     { mean: 55, std: 12 },
+    neuroticism:       { mean: 53, std: 12 }
+  },
+
+  /**
+   * 匹配九型人格（相对位置法）
+   * 1. 将用户得分转为 z-score（相对人群分布）
+   * 2. 将类型理想分也转为 z-score
+   * 3. 对比 z-score 模式匹配度
    */
   matchEnneagram(scores) {
     const patterns = this.getEnneagramPatterns();
+    const stats = this.ENNEAGRAM_POPULATION_STATS;
 
-    const cfg = this.CONFIG;
-    const getLevel = (val) => val >= cfg.ENNEAGRAM_HIGH ? 'high' : val >= cfg.ENNEAGRAM_MID_LOW ? 'mid' : 'low';
+    // 理想分映射
+    const idealScore = { high: 78, mid: 48, low: 18 };
 
-    let bestMatch = null;
-    let bestScore = -Infinity;
-
-    patterns.forEach(type => {
-      let score = 0, maxScore = 0;
+    // 对每种类型计算匹配分
+    const results = patterns.map(type => {
+      let totalMatch = 0;
 
       this.DIMENSIONS.forEach(dim => {
         const entry = type.w[dim];
-        const userLevel = getLevel(scores[dim]);
-        maxScore += entry.w * 2;
+        const w = entry.w;
+        const { mean, std } = stats[dim];
 
-        if (userLevel === entry.e) {
-          score += entry.w * 2;
-        } else if (
-          (userLevel === 'mid' && entry.e === 'high') ||
-          (userLevel === 'high' && entry.e === 'mid') ||
-          (userLevel === 'mid' && entry.e === 'low') ||
-          (userLevel === 'low' && entry.e === 'mid')
-        ) {
-          score += entry.w * 0.8;
-        }
+        // 用户 z-score（相对于人群分布）
+        const userZ = (scores[dim] - mean) / std;
+
+        // 理想 z-score
+        const ideal = idealScore[entry.e];
+        const idealZ = (ideal - mean) / std;
+
+        // 同向加分，反向扣分
+        // z-score 模式一致性：同正/同负/同零
+        const product = userZ * idealZ;
+        // 同向贡献正分，反向贡献负分
+        const match = product > 0 ? w * Math.min(Math.abs(product), 2) : w * Math.max(product, -1);
+        totalMatch += match;
       });
 
-      const normalized = maxScore > 0 ? score / maxScore : 0;
-      if (normalized > bestScore) {
-        bestScore = normalized;
-        bestMatch = type;
-      }
+      return { type, score: totalMatch };
     });
 
+    // 按得分降序
+    results.sort((a, b) => b.score - a.score);
+
+    const best = results[0].type;
+
     return {
-      type: bestMatch.type,
-      name: bestMatch.name,
-      icon: bestMatch.icon,
-      motivation: bestMatch.motivation,
-      fear: bestMatch.fear
+      type: best.type,
+      name: best.name,
+      icon: best.icon,
+      motivation: best.motivation,
+      fear: best.fear
     };
   },
 
