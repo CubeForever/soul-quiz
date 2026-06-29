@@ -1,6 +1,5 @@
-// @ts-nocheck
 /**
- * share.js — 分享功能模块
+ * share.ts — 分享功能模块
  * 使用 html2canvas 截图生成分享图片
  */
 
@@ -9,7 +8,7 @@ window.SoulShare = {
   /**
    * 生成分享图片并触发下载
    */
-  async captureReport() {
+  async captureReport(): Promise<void> {
     const el = document.getElementById('report-container');
     if (!el) return;
 
@@ -29,14 +28,14 @@ window.SoulShare = {
             await this.loadScript(url, 8000);
             loaded = true;
             break;
-          } catch (e) {
-            console.warn('[SoulShare] CDN 加载失败，尝试备用源:', url, e.message);
+          } catch (err) {
+            console.warn('[SoulShare] CDN 加载失败，尝试备用源:', url, (err as Error).message);
           }
         }
         if (!loaded) throw new Error('所有 CDN 加载失败');
       }
 
-      const canvas = await html2canvas(el, {
+      const canvas = await window.html2canvas!(el, {
         backgroundColor: '#0a0a2e',
         scale: 2,
         useCORS: true,
@@ -67,8 +66,9 @@ window.SoulShare = {
   /**
    * 添加水印
    */
-  addWatermark(canvas) {
+  addWatermark(canvas: HTMLCanvasElement): void {
     const ctx = canvas.getContext('2d');
+    if (!ctx) return;
     ctx.save();
     ctx.globalAlpha = 0.15;
     ctx.fillStyle = '#ffffff';
@@ -81,7 +81,7 @@ window.SoulShare = {
   /**
    * 生成链接签名
    */
-  _signData(data) {
+  _signData(data: Record<string, unknown>): string {
     // 简单 HMAC 风格签名：内容 + 固定密钥的 DJB2 哈希
     // ⚠️ 注意：这是前端防篡改，仅用于防止普通用户随意修改 URL 参数
     //    前端代码对用户完全可见，无法做到真正的加密安全
@@ -104,8 +104,8 @@ window.SoulShare = {
   /**
    * 复制结果链接（使用 URL hash 存储关键数据）
    */
-  copyShareLink(scores, enneagram) {
-    const data = {
+  copyShareLink(scores: NormalizedScores, enneagram: { type: number }): void {
+    const data: Record<string, unknown> = {
       s: [scores.openness, scores.conscientiousness, scores.extraversion, scores.agreeableness, scores.neuroticism],
       e: enneagram.type
     };
@@ -132,25 +132,25 @@ window.SoulShare = {
   /**
    * 解析分享链接
    */
-  parseShareLink() {
+  parseShareLink(): SharedReportData | null {
     const hash = window.location.hash;
     if (!hash.startsWith('#r=')) return null;
     try {
-      const data = JSON.parse(atob(hash.slice(3)));
-      // 验证签名（去掉 k 字段后计算）
-      const sig = data.k;
-      delete data.k;
-      const expected = this._signData(data);
+      const raw = JSON.parse(atob(hash.slice(3))) as Record<string, unknown>;
+      const sig = raw.k as string;
+      delete raw.k;
+      const expected = this._signData(raw);
       if (sig !== expected) return null;
+      const s = raw.s as number[];
       return {
         scores: {
-          openness: data.s[0],
-          conscientiousness: data.s[1],
-          extraversion: data.s[2],
-          agreeableness: data.s[3],
-          neuroticism: data.s[4]
+          openness: s[0],
+          conscientiousness: s[1],
+          extraversion: s[2],
+          agreeableness: s[3],
+          neuroticism: s[4]
         },
-        enneagramType: data.e
+        enneagramType: raw.e as number
       };
     } catch {
       return null;
@@ -160,8 +160,8 @@ window.SoulShare = {
   /**
    * 动态加载外部脚本（带超时）
    */
-  loadScript(src, timeoutMs = 10000) {
-    return new Promise((resolve, reject) => {
+  loadScript(src: string, timeoutMs: number = 10000): Promise<void> {
+    return new Promise<void>(function(resolve, reject) {
       const timer = setTimeout(() => reject(new Error('加载超时')), timeoutMs);
       const script = document.createElement('script');
       script.src = src;
@@ -171,7 +171,7 @@ window.SoulShare = {
     });
   },
 
-  showTip(text) {
+  showTip(text: string): HTMLElement {
     const tip = document.createElement('div');
     tip.className = 'share-tip';
     tip.textContent = text;
@@ -179,11 +179,11 @@ window.SoulShare = {
     return tip;
   },
 
-  updateTip(el, text) {
+  updateTip(el: HTMLElement, text: string): void {
     if (el) el.textContent = text;
   },
 
-  showTemporaryTip(text) {
+  showTemporaryTip(text: string): void {
     const tip = this.showTip(text);
     setTimeout(() => tip.remove(), 2500);
   }

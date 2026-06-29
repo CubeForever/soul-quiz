@@ -14,6 +14,7 @@
 - **排序题键盘操作**：↑↓ 方向键 + Home/End + 触屏 ↑↓ 按钮，无障碍支持
 - **PWA 离线支持**：Service Worker 预缓存核心资源，二次加载秒开
 - **XSS 安全防护**：HTML 自动转义标签模板，杜绝注入风险
+- **TypeScript strict**：全量类型覆盖，零 `any`、零 `@ts-nocheck`，类型安全 100%
 - **Webhook 推送**：支持企业微信 / 飞书 / 钉钉自动识别（带防抖保护）
 - **星空动画背景**：Canvas 实现的动态粒子星空
 
@@ -27,7 +28,7 @@
 
 ## 🛠️ 技术栈
 
-纯前端 — HTML + CSS + JavaScript（零运行时依赖）。
+纯前端 — HTML + CSS + **TypeScript strict**（零运行时依赖）。
 
 | 层级 | 技术方案 |
 |------|---------|
@@ -40,7 +41,7 @@
 | 分享 | html2canvas (CDN) 截图 + Base64 URL 分享（带签名防篡改） |
 | PWA | Service Worker（版本化增量更新） |
 | 测试 | Jest + JSDOM（**73 个单元测试**，覆盖率 **50%+**） |
-| 代码质量 | ESLint（零报警）+ EditorConfig |
+| 代码质量 | **TypeScript strict**（全量类型 · 零 any · 零 @ts-nocheck）+ ESLint（零报警）+ EditorConfig |
 
 ## 🌐 浏览器兼容
 
@@ -63,6 +64,7 @@
 ├── manifest.json       # PWA 清单
 ├── sw.js               # Service Worker 离线缓存 v2
 ├── package.json        # 依赖与脚本
+├── tsconfig.json       # TypeScript strict 配置
 ├── jest.config.js      # Jest 配置（含覆盖率）
 ├── jest-setup.js       # 测试环境配置
 ├── eslint.config.mjs   # ESLint 配置（零报警）
@@ -73,13 +75,16 @@
 │   └── style.css       # 全局样式（深空灵魂主题 · 1060 行）
 ├── js/
 │   ├── main.js         # Vite 入口（按顺序导入所有模块）
-│   ├── questions.js    # 题库数据（28 题 + 计分映射）
-│   ├── scoring.js      # 评分算法（OCEAN + 九型 z-score 匹配）
-│   ├── utils.js        # 通用工具函数（XSS 防护模板、DOM 构建）
-│   ├── report.js       # 报告生成引擎（148 段文案组合）
-│   ├── ui.js           # UI 控制（页面状态机、动画、错误边界）
-│   ├── share.js        # 分享功能（截图/链接签名）
-│   └── webhook.js      # 管理员数据回传（防抖/多平台自适应）
+│   ├── questions.ts    # 题库数据（28 题 + 计分映射）
+│   ├── scoring.ts      # 评分算法（OCEAN + 九型 z-score 匹配）
+│   ├── utils.ts        # 通用工具函数（XSS 防护模板、DOM 构建）
+│   ├── report.ts       # 报告生成引擎（148 段文案组合）
+│   ├── ui.ts           # UI 控制（页面状态机、动画、错误边界）
+│   ├── share.ts        # 分享功能（截图/链接签名）
+│   └── webhook.ts      # 管理员数据回传（防抖/多平台自适应）
+├── src/
+│   └── types/
+│       └── global.d.ts   # 全局 TypeScript 类型声明
 ├── __tests__/
 │   ├── scoring.test.js           # 评分与九型匹配（19 用例）
 │   ├── report_and_share.test.js  # 报告生成与分享（21 用例）
@@ -135,7 +140,7 @@ node __tests__/distribution_test.js
 
 ## ⚙️ 配置说明
 
-### 评分参数（`js/scoring.js` 顶部）
+### 评分参数（`js/scoring.ts` 顶部）
 
 ```javascript
 CONFIG: {
@@ -149,7 +154,7 @@ CONFIG: {
 }
 ```
 
-### Webhook（`js/webhook.js`）
+### Webhook（`js/webhook.ts`）
 
 ```javascript
 // 修改 ADMIN_CONFIG 配置项
@@ -184,8 +189,9 @@ enabled: false,   // 开启推送
 
 ## ✅ 当前状态
 
-- **40 个单元测试全部通过**（评分 / 九型 / 报告生成 / 分享功能）
-- **ESLint 零报警**（14 个 JS 文件零错误零警告）
+- **TypeScript strict 全量通过**：7 个 TS 文件零 `any`、零 `@ts-nocheck`，类型覆盖 100%
+- **73 个单元测试全部通过**（评分 / 九型 / 报告生成 / 分享功能）
+- **ESLint 零报警**（14 个 JS/TS 文件零错误零警告）
 - **覆盖率**：核心评分模块 96%，报告生成 95%
 - PWA 离线可用（Service Worker v2，支持增量更新 + 版本通知）
 - 全局错误边界 + 白屏降级 + Toast 提示

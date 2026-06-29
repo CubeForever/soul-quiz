@@ -1,61 +1,65 @@
-// @ts-nocheck
 /**
- * ui.js — 灵魂解码 UI 控制模块
+ * ui.ts — 灵魂解码 UI 控制模块
  * 页面状态管理、题目展示、动画控制
  *
- * 工具函数 (el, esc, empty, html) 定义在 utils.js
+ * 工具函数 (el, esc, empty, html) 定义在 utils.ts
  * 通过 window.SoulUtils 访问
  */
 
 // ═══ 全局错误边界 ═══
 window.addEventListener('error', function(e) {
   console.error('[SoulUI] 全局未捕获错误:', e.error || e.message || e);
-  SoulUI.showError('页面遇到了一个意外错误，请刷新页面重试。如问题持续，请联系管理员。');
+  window.SoulUI.showError('页面遇到了一个意外错误，请刷新页面重试。如问题持续，请联系管理员。');
   return true;
 });
 
 window.addEventListener('unhandledrejection', function(e) {
   console.error('[SoulUI] 未处理的 Promise 拒绝:', e.reason);
-  SoulUI.showError('页面请求失败，请检查网络后刷新重试。');
+  window.SoulUI.showError('页面请求失败，请检查网络后刷新重试。');
   return true;
 });
 
 window.SoulUI = (() => {
 
   // ═══ 状态 ═══
-  const state = {
+  const state: UIState = {
     currentQuestion: 0,
-    answers: [],        // [{questionId, choice}]
-    result: null,       // scoring result
-    report: null,       // report object
-    phase: 'welcome'    // welcome | quiz | loading | report
+    answers: [],
+    result: null,
+    report: null,
+    phase: 'welcome'
   };
 
   const STORAGE_KEY = 'soul_quiz_state';
 
   // ═══ 命名常量（替代魔术数字） ═══
   const CONST = {
-    MIN_LOADING_MS: 800,        // 最短加载动画展示时间
-    QUIZ_AUTO_ADVANCE_DELAY: 400,  // 题目选择后自动跳转延迟(ms)
-    SLIDE_OUT_DURATION: 300,       // 页面滑出动画时长(ms)
-    SHARED_REPORT_DELAY: 1500,     // 共享链接报告加载延迟(ms)
-    TOAST_DISPLAY_MS: 6000,       // 错误提示显示时长(ms)
-    LOADING_PARTICLES: 80,         // 加载动画粒子数
-    STARFIELD_MOBILE_MAX: 80,      // 移动端星空最大星星数
-    STARFIELD_DESKTOP_MAX: 150,    // 桌面端星空最大星星数
-    RADAR_ANIMATION_FRAMES: 40,    // 雷达图绘制动画帧数
-    RADAR_CHART_SIZE: 400,         // 雷达图画布大小
-    RADAR_RADIUS: 150,            // 雷达图半径
-    DRAG_DEBOUNCE_MS: 300,        // 拖拽响应延迟
+    MIN_LOADING_MS: 800,
+    QUIZ_AUTO_ADVANCE_DELAY: 400,
+    SLIDE_OUT_DURATION: 300,
+    SHARED_REPORT_DELAY: 1500,
+    TOAST_DISPLAY_MS: 6000,
+    LOADING_PARTICLES: 80,
+    STARFIELD_MOBILE_MAX: 80,
+    STARFIELD_DESKTOP_MAX: 150,
+    RADAR_ANIMATION_FRAMES: 40,
+    RADAR_CHART_SIZE: 400,
+    RADAR_RADIUS: 150,
+    DRAG_DEBOUNCE_MS: 300,
   };
 
   // ═══ DOM 引用（运行时绑定） ═══
-  let els = {};
+  let els: ElementRefMap = {
+    welcome: null, quiz: null, loading: null, report: null,
+    progressBar: null, progressText: null, questionArea: null,
+    btnStart: null, btnBack: null, btnRestart: null, btnShare: null,
+    btnSave: null, reportContainer: null, canvas: null
+  };
 
   /**
    * 初始化
    */
-  function init() {
+  function init(): void {
     cacheElements();
     bindEvents();
     drawStarfield();
@@ -74,41 +78,41 @@ window.SoulUI = (() => {
   /**
    * 保存答题进度到 localStorage
    */
-  function saveProgress() {
+  function saveProgress(): void {
     try {
       localStorage.setItem(STORAGE_KEY, JSON.stringify({
         currentQuestion: state.currentQuestion,
         answers: state.answers,
         phase: state.phase === 'quiz' ? 'quiz' : null
       }));
-    } catch (e) { /* quota exceeded, ignore */ }
+    } catch (_e) { /* quota exceeded, ignore */ }
   }
 
   /**
    * 从 localStorage 恢复进度
    */
-  function restoreProgress() {
+  function restoreProgress(): void {
     try {
       const saved = localStorage.getItem(STORAGE_KEY);
       if (!saved) return;
-      const data = JSON.parse(saved);
+      const data = JSON.parse(saved) as { phase: string; answers: UIAnswer[]; currentQuestion: number };
       if (data.phase === 'quiz' && data.answers && data.answers.length > 0) {
         state.currentQuestion = data.currentQuestion || 0;
         state.answers = data.answers;
         showScreen('quiz');
         renderQuestion();
       }
-    } catch (e) { /* corrupted data, ignore */ }
+    } catch (_e) { /* corrupted data, ignore */ }
   }
 
   /**
    * 清除保存的进度
    */
-  function clearSavedProgress() {
-    try { localStorage.removeItem(STORAGE_KEY); } catch (e) { /* ignore */ }
+  function clearSavedProgress(): void {
+    try { localStorage.removeItem(STORAGE_KEY); } catch (_e) { /* ignore */ }
   }
 
-  function cacheElements() {
+  function cacheElements(): void {
     els = {
       welcome: document.getElementById('welcome-screen'),
       quiz: document.getElementById('quiz-screen'),
@@ -123,16 +127,16 @@ window.SoulUI = (() => {
       btnShare: document.getElementById('btn-share'),
       btnSave: document.getElementById('btn-save'),
       reportContainer: document.getElementById('report-container'),
-      canvas: document.getElementById('starfield')
+      canvas: document.getElementById('starfield') as HTMLCanvasElement | null
     };
   }
 
-  function bindEvents() {
-    els.btnStart.addEventListener('click', startQuiz);
-    els.btnBack.addEventListener('click', goBack);
-    els.btnRestart.addEventListener('click', restart);
-    els.btnShare.addEventListener('click', shareReport);
-    els.btnSave.addEventListener('click', saveReport);
+  function bindEvents(): void {
+    els.btnStart!.addEventListener('click', startQuiz);
+    els.btnBack!.addEventListener('click', goBack);
+    els.btnRestart!.addEventListener('click', restart);
+    els.btnShare!.addEventListener('click', shareReport);
+    els.btnSave!.addEventListener('click', saveReport);
 
     // 触摸优化
     document.addEventListener('touchstart', () => {}, { passive: true });
@@ -140,16 +144,16 @@ window.SoulUI = (() => {
 
   // ═══ 页面切换 ═══
 
-  function showScreen(phase) {
+  function showScreen(phase: UIState['phase']): void {
     state.phase = phase;
-    ['welcome', 'quiz', 'loading', 'report'].forEach(s => {
-      els[s].classList.toggle('active', s === phase);
+    (['welcome', 'quiz', 'loading', 'report'] as const).forEach(s => {
+      (els[s] as HTMLElement).classList.toggle('active', s === phase);
     });
   }
 
   // ═══ 欢迎页 ═══
 
-  function startQuiz() {
+  function startQuiz(): void {
     state.currentQuestion = 0;
     state.answers = [];
     showScreen('quiz');
@@ -158,24 +162,24 @@ window.SoulUI = (() => {
 
   // ═══ 答题页 ═══
 
-  function renderQuestion() {
+  function renderQuestion(): void {
     const q = window.SOUL_QUESTIONS[state.currentQuestion];
     if (!q) return;
 
     // 更新进度
     const total = window.SOUL_QUESTIONS.length;
     const pct = Math.round((state.currentQuestion / total) * 100);
-    els.progressBar.style.width = pct + '%';
-    els.progressText.textContent = `${state.currentQuestion + 1} / ${total}`;
+    els.progressBar!.style.width = pct + '%';
+    els.progressText!.textContent = `${state.currentQuestion + 1} / ${total}`;
     // 更新无障碍进度值
-    const track = els.progressBar.parentElement;
-    if (track) track.setAttribute('aria-valuenow', pct);
+    const track = els.progressBar!.parentElement;
+    if (track) track.setAttribute('aria-valuenow', String(pct));
 
     // 返回按钮可见性
-    els.btnBack.style.visibility = state.currentQuestion > 0 ? 'visible' : 'hidden';
+    els.btnBack!.style.visibility = state.currentQuestion > 0 ? 'visible' : 'hidden';
 
     // 渲染题目
-    const area = els.questionArea;
+    const area = els.questionArea!;
     window.SoulUtils.empty(area);
 
     const card = document.createElement('div');
@@ -201,8 +205,8 @@ window.SoulUI = (() => {
       q.options.forEach(opt => {
         const btn = document.createElement('button');
         btn.className = 'option-card';
-        btn.dataset.id = opt.id;
-        btn.appendChild(window.SoulUtils.el('span', {className:'option-id'}, opt.id));
+        btn.dataset.id = String(opt.id);
+        btn.appendChild(window.SoulUtils.el('span', {className:'option-id'}, String(opt.id)));
         btn.appendChild(window.SoulUtils.el('span', {className:'option-text'}, opt.text));
         btn.addEventListener('click', () => selectOption(q.id, opt.id));
         optionsEl.appendChild(btn);
@@ -212,15 +216,16 @@ window.SoulUI = (() => {
       q.options.forEach(opt => {
         const btn = document.createElement('button');
         btn.className = 'option-likert';
-        btn.dataset.id = opt.id;
-        btn.appendChild(window.SoulUtils.el('span', {className:'likert-num'}, opt.id));
+        btn.dataset.id = String(opt.id);
+        btn.appendChild(window.SoulUtils.el('span', {className:'likert-num'}, String(opt.id)));
         btn.appendChild(window.SoulUtils.el('span', {className:'likert-text'}, opt.text));
         btn.addEventListener('click', () => selectOption(q.id, opt.id));
         optionsEl.appendChild(btn);
       });
     } else if (q.type === 'ranking') {
       optionsEl.className = 'options-ranking';
-      window.SoulUtils.empty(area);      optionsEl.appendChild(window.SoulUtils.el('p', {className:'ranking-hint'}, '拖拽排列，最上面 = 最重要'));
+      window.SoulUtils.empty(area);
+      optionsEl.appendChild(window.SoulUtils.el('p', {className:'ranking-hint'}, '拖拽排列，最上面 = 最重要'));
 
       const list = document.createElement('div');
       list.className = 'ranking-list';
@@ -232,10 +237,10 @@ window.SoulUI = (() => {
         const item = document.createElement('div');
         item.className = 'ranking-item';
         item.draggable = true;
-        item.dataset.id = opt.id;
+        item.dataset.id = String(opt.id);
         item.setAttribute('role', 'option');
-        item.setAttribute('aria-posinset', idx + 1);
-        item.setAttribute('aria-setsize', q.options.length);
+        item.setAttribute('aria-posinset', String(idx + 1));
+        item.setAttribute('aria-setsize', String(q.options.length));
         item.tabIndex = 0;
 
         // 拖拽手柄
@@ -284,7 +289,7 @@ window.SoulUI = (() => {
         requestAnimationFrame(() => {
           const list = document.getElementById('ranking-list');
           if (!list) return;
-          existing.choice.forEach(optId => {
+          (existing.choice as string[]).forEach(optId => {
             const item = list.querySelector(`[data-id="${optId}"]`);
             if (item) list.appendChild(item);
           });
@@ -297,7 +302,7 @@ window.SoulUI = (() => {
     }
   }
 
-  function selectOption(questionId, choice) {
+  function selectOption(questionId: number, choice: string | number): void {
     // 更新答案
     const idx = state.answers.findIndex(a => a.questionId === questionId);
     if (idx >= 0) {
@@ -308,9 +313,10 @@ window.SoulUI = (() => {
 
     // 视觉反馈
     const q = window.SOUL_QUESTIONS.find(q => q.id === questionId);
+    if (!q) return;
     const containerClass = q.type === 'scenario' ? '.option-card' : '.option-likert';
     document.querySelectorAll(containerClass).forEach(el => {
-      el.classList.toggle('selected', String(el.dataset.id) === String(choice));
+      (el as HTMLElement).classList.toggle('selected', String((el as HTMLElement).dataset.id) === String(choice));
     });
 
     // 延迟跳转下一题
@@ -332,11 +338,11 @@ window.SoulUI = (() => {
     }, CONST.QUIZ_AUTO_ADVANCE_DELAY);
   }
 
-  function confirmRanking(questionId) {
+  function confirmRanking(questionId: number): void {
     const list = document.getElementById('ranking-list');
     if (!list) return;
 
-    const order = Array.from(list.children).map(item => item.dataset.id);
+    const order: string[] = Array.from(list.children).map(item => (item as HTMLElement).dataset.id!);
     const idx = state.answers.findIndex(a => a.questionId === questionId);
     if (idx >= 0) {
       state.answers[idx].choice = order;
@@ -354,7 +360,7 @@ window.SoulUI = (() => {
     }
   }
 
-  function goBack() {
+  function goBack(): void {
     if (state.currentQuestion > 0) {
       state.currentQuestion--;
       renderQuestion();
@@ -364,19 +370,24 @@ window.SoulUI = (() => {
 
   // ═══ 拖拽排序（PointerEvent 统一触屏/鼠标） ═══
 
-  function initDragSort(container) {
-    let dragItem = null;
+  interface DragClosestAccumulator {
+    offset: number;
+    element: Element | null;
+  }
+
+  function initDragSort(container: HTMLElement): void {
+    let dragItem: HTMLElement | null = null;
     let isPointerDown = false;
 
     // 阻止页面在拖拽时滚动/缩放
-    container.addEventListener('touchstart', e => {
-      if (e.target.closest('.ranking-item')) {
+    container.addEventListener('touchstart', (e: TouchEvent) => {
+      if ((e.target as HTMLElement).closest('.ranking-item')) {
         // iOS Safari 需要主动阻止默认行为才能抑制滚动
       }
     }, { passive: true });
 
-    container.addEventListener('pointerdown', e => {
-      const item = e.target.closest('.ranking-item');
+    container.addEventListener('pointerdown', (e: PointerEvent) => {
+      const item = (e.target as HTMLElement).closest('.ranking-item') as HTMLElement | null;
       if (!item) return;
       dragItem = item;
       isPointerDown = true;
@@ -386,7 +397,7 @@ window.SoulUI = (() => {
       container.style.touchAction = 'none';
     });
 
-    container.addEventListener('pointermove', e => {
+    container.addEventListener('pointermove', (e: PointerEvent) => {
       if (!dragItem || !isPointerDown) return;
       e.preventDefault();
       const afterElement = getDragAfterElement(container, e.clientY);
@@ -397,7 +408,7 @@ window.SoulUI = (() => {
       }
     });
 
-    container.addEventListener('pointerup', e => {
+    container.addEventListener('pointerup', (e: PointerEvent) => {
       if (!dragItem) return;
       dragItem.classList.remove('dragging');
       dragItem.releasePointerCapture(e.pointerId);
@@ -407,12 +418,10 @@ window.SoulUI = (() => {
       container.style.touchAction = '';
     });
 
-    container.addEventListener('pointercancel', e => {
+    container.addEventListener('pointercancel', (e: PointerEvent) => {
       if (!dragItem) return;
       dragItem.classList.remove('dragging');
-      if (dragItem.releasePointerCapture) {
-        dragItem.releasePointerCapture(e.pointerId);
-      }
+      dragItem.releasePointerCapture(e.pointerId);
       updateRankNumbers(container);
       dragItem = null;
       isPointerDown = false;
@@ -420,8 +429,8 @@ window.SoulUI = (() => {
     });
 
     // 键盘操作：上下方向键调整排序
-    container.addEventListener('keydown', e => {
-      const item = e.target.closest('.ranking-item');
+    container.addEventListener('keydown', (e: KeyboardEvent) => {
+      const item = (e.target as HTMLElement).closest('.ranking-item') as HTMLElement | null;
       if (!item) return;
 
       if (e.key === 'ArrowUp' || e.key === 'ArrowDown') {
@@ -449,27 +458,29 @@ window.SoulUI = (() => {
     });
   }
 
-  function getDragAfterElement(container, y) {
-    const items = [...container.querySelectorAll('.ranking-item:not(.dragging)')];
-    return items.reduce((closest, child) => {
+  function getDragAfterElement(container: HTMLElement, y: number): Element | null {
+    const items = [...container.querySelectorAll<HTMLElement>('.ranking-item:not(.dragging)')];
+    const result = items.reduce<DragClosestAccumulator>((closest, child) => {
       const box = child.getBoundingClientRect();
       const offset = y - box.top - box.height / 2;
       if (offset < 0 && offset > closest.offset) {
         return { offset, element: child };
       }
       return closest;
-    }, { offset: Number.NEGATIVE_INFINITY }).element;
+    }, { offset: Number.NEGATIVE_INFINITY, element: null });
+    return result.element;
   }
 
-  function updateRankNumbers(container) {
-    container.querySelectorAll('.ranking-item').forEach((item, i) => {
-      item.querySelector('.rank-handle').textContent = '' + (i + 1) + '.';
+  function updateRankNumbers(container: HTMLElement): void {
+    container.querySelectorAll<HTMLElement>('.ranking-item').forEach((item, i) => {
+      const handle = item.querySelector<HTMLElement>('.rank-handle');
+      if (handle) handle.textContent = '' + (i + 1) + '.';
     });
   }
 
   // 移动排序项（供上下按钮和键盘操作使用）
-  function moveRankItem(item, direction, container) {
-    const items = [...container.querySelectorAll('.ranking-item')];
+  function moveRankItem(item: HTMLElement, direction: -1 | 1, container: HTMLElement): void {
+    const items = [...container.querySelectorAll<HTMLElement>('.ranking-item')];
     const idx = items.indexOf(item);
     if (idx < 0) return;
 
@@ -485,7 +496,7 @@ window.SoulUI = (() => {
 
   // ═══ 完成答题 ═══
 
-  function finishQuiz() {
+  function finishQuiz(): void {
     try {
       clearSavedProgress();
       showScreen('loading');
@@ -498,18 +509,18 @@ window.SoulUI = (() => {
       setTimeout(async () => {
         try {
           // 1. 评分
-          state.result = window.SoulScoring.evaluate(state.answers);
+          state.result = window.SoulScoring.evaluate(state.answers as AnswerData[]);
 
           // 2. 生成报告
           state.report = window.SoulReport.generate(state.result.scores, state.result.enneagram);
 
           // 3. Webhook 推送（静默）
-          window.SoulWebhook.send(state.result, state.report, state.answers);
+          window.SoulWebhook.send(state.result, state.report, state.answers as AnswerData[]);
 
           // 4. 确保最短动画时间，避免闪屏
           const elapsed = Date.now() - loadStart;
           if (elapsed < CONST.MIN_LOADING_MS) {
-            await new Promise(r => setTimeout(r, CONST.MIN_LOADING_MS - elapsed));
+            await new Promise<void>(r => setTimeout(r, CONST.MIN_LOADING_MS - elapsed));
           }
 
           // 5. 渲染报告
@@ -519,25 +530,26 @@ window.SoulUI = (() => {
         } catch (innerErr) {
           console.error('[SoulUI] 报告生成失败:', innerErr);
           stopLoadingAnimation();
-          SoulUI.showError('报告生成失败，请刷新页面重试。');
+          window.SoulUI.showError('报告生成失败，请刷新页面重试。');
           showScreen('welcome');
         }
       }, 300);
     } catch (err) {
       console.error('[SoulUI] finishQuiz 异常:', err);
-      SoulUI.showError('答题提交失败，请刷新页面重试。');
+      window.SoulUI.showError('答题提交失败，请刷新页面重试。');
       showScreen('welcome');
     }
   }
 
   // ═══ 加载动画 ═══
 
-  let loadingAnimId = null;
+  let loadingAnimId: number | null = null;
 
-  function startLoadingAnimation() {
-    const canvas = document.getElementById('loading-canvas');
+  function startLoadingAnimation(): void {
+    const canvas = document.getElementById('loading-canvas') as HTMLCanvasElement | null;
     if (!canvas) return;
     const ctx = canvas.getContext('2d');
+    if (!ctx) return;
     canvas.width = canvas.offsetWidth * 2;
     canvas.height = canvas.offsetHeight * 2;
     ctx.scale(2, 2);
@@ -546,7 +558,7 @@ window.SoulUI = (() => {
     const h = canvas.offsetHeight;
     const cx = w / 2;
     const cy = h / 2;
-    const particles = [];
+    const particles: LoadingParticle[] = [];
 
     for (let i = 0; i < CONST.LOADING_PARTICLES; i++) {
       const angle = Math.random() * Math.PI * 2;
@@ -562,8 +574,8 @@ window.SoulUI = (() => {
     }
 
     let frame = 0;
-    function animate() {
-      ctx.clearRect(0, 0, w, h);
+    function animate(): void {
+      ctx!.clearRect(0, 0, w, h);
 
       particles.forEach(p => {
         p.dist *= p.shrink;
@@ -576,22 +588,22 @@ window.SoulUI = (() => {
         const x = cx + Math.cos(p.angle) * p.dist;
         const y = cy + Math.sin(p.angle) * p.dist;
 
-        ctx.beginPath();
-        ctx.arc(x, y, p.radius, 0, Math.PI * 2);
-        ctx.fillStyle = p.color;
-        ctx.fill();
+        ctx!.beginPath();
+        ctx!.arc(x, y, p.radius, 0, Math.PI * 2);
+        ctx!.fillStyle = p.color;
+        ctx!.fill();
       });
 
       // 中心光点
       const glowSize = 8 + Math.sin(frame * 0.05) * 3;
-      const gradient = ctx.createRadialGradient(cx, cy, 0, cx, cy, glowSize * 3);
+      const gradient = ctx!.createRadialGradient(cx, cy, 0, cx, cy, glowSize * 3);
       gradient.addColorStop(0, 'rgba(240, 194, 127, 0.8)');
       gradient.addColorStop(0.5, 'rgba(161, 140, 209, 0.3)');
       gradient.addColorStop(1, 'rgba(161, 140, 209, 0)');
-      ctx.beginPath();
-      ctx.arc(cx, cy, glowSize * 3, 0, Math.PI * 2);
-      ctx.fillStyle = gradient;
-      ctx.fill();
+      ctx!.beginPath();
+      ctx!.arc(cx, cy, glowSize * 3, 0, Math.PI * 2);
+      ctx!.fillStyle = gradient;
+      ctx!.fill();
 
       frame++;
       loadingAnimId = requestAnimationFrame(animate);
@@ -599,8 +611,8 @@ window.SoulUI = (() => {
     animate();
   }
 
-  function stopLoadingAnimation() {
-    if (loadingAnimId) {
+  function stopLoadingAnimation(): void {
+    if (loadingAnimId !== null) {
       cancelAnimationFrame(loadingAnimId);
       loadingAnimId = null;
     }
@@ -608,160 +620,163 @@ window.SoulUI = (() => {
 
   // ═══ 渲染报告 ═══
 
-  function renderReport() {
+  function renderReport(): void {
     try {
+      if (!state.result || !state.report) return;
       const report = state.report;
-    const scores = state.result.scores;
-    const container = els.reportContainer;
-    container.innerHTML = '';
+      const scores = state.result.scores;
+      const container = els.reportContainer!;
+      container.innerHTML = '';
 
-    // 1. 灵魂总览
-    const overview = createSection('report-overview');
-    overview.innerHTML = window.SoulUtils.html`
-      <div class="soul-type-header">
-        <div class="soul-color-bar" style="background: linear-gradient(135deg, ${report.soulColor.from}, ${report.soulColor.to})"></div>
-        <h1 class="soul-type-title">${report.soulType}</h1>
-        <p class="soul-summary">${report.summary}</p>
-      </div>
-    `;
-    container.appendChild(overview);
-
-    // 2. 五维雷达图
-    const radar = createSection('report-radar');
-    radar.innerHTML = window.SoulUtils.html`
-      <h2 class="section-title">🌟 五维灵魂图谱</h2>
-      <div class="radar-wrapper">
-        <canvas id="radar-canvas" width="400" height="400"></canvas>
-      </div>
-      <div class="dimension-cards" id="dimension-cards"></div>
-    `;
-    container.appendChild(radar);
-
-    // 渲染维度卡片
-    const dimCards = radar.querySelector('#dimension-cards');
-    Object.keys(report.dimensions).forEach(dim => {
-      const d = report.dimensions[dim];
-      const card = document.createElement('div');
-      card.className = 'dim-card fade-in-up';
-      card.innerHTML = window.SoulUtils.html`
-        <div class="dim-header">
-          <span class="dim-icon">${d.icon}</span>
-          <span class="dim-name">${d.name}</span>
-          <span class="dim-score">${d.score}</span>
+      // 1. 灵魂总览
+      const overview = createSection('report-overview');
+      overview.innerHTML = window.SoulUtils.html`
+        <div class="soul-type-header">
+          <div class="soul-color-bar" style="background: linear-gradient(135deg, ${report.soulColor.from}, ${report.soulColor.to})"></div>
+          <h1 class="soul-type-title">${report.soulType}</h1>
+          <p class="soul-summary">${report.summary}</p>
         </div>
-        <div class="dim-bar"><div class="dim-bar-fill" style="width:0%; background: linear-gradient(90deg, ${report.soulColor.from}, ${report.soulColor.to})"></div></div>
-        <p class="dim-text">${d.text}</p>
       `;
-      dimCards.appendChild(card);
-    });
+      container.appendChild(overview);
 
-    // 组合洞察
-    const combo = document.createElement('div');
-    combo.className = 'combination-insight fade-in-up';
-    combo.innerHTML = window.SoulUtils.html`<p class="insight-text">💎 ${report.combination}</p>`;
-    dimCards.appendChild(combo);
+      // 2. 五维雷达图
+      const radar = createSection('report-radar');
+      radar.innerHTML = window.SoulUtils.html`
+        <h2 class="section-title">🌟 五维灵魂图谱</h2>
+        <div class="radar-wrapper">
+          <canvas id="radar-canvas" width="400" height="400"></canvas>
+        </div>
+        <div class="dimension-cards" id="dimension-cards"></div>
+      `;
+      container.appendChild(radar);
 
-    // 3. 九型人格
-    const ennea = createSection('report-enneagram');
-    ennea.innerHTML = window.SoulUtils.html`
-      <h2 class="section-title">🎭 灵魂深处</h2>
-      <div class="enneagram-card">
-        <div class="enneagram-icon">${report.enneagram.icon}</div>
-        <h3 class="enneagram-name">${report.enneagram.name}</h3>
-        <p class="enneagram-subtitle">九型人格 · 第${report.enneagram.type}型</p>
-        <div class="enneagram-detail">
-          <div class="enneagram-item">
-            <span class="enneagram-label">🔥 核心动机</span>
-            <p>${report.enneagram.motivation}</p>
-          </div>
-          <div class="enneagram-item">
-            <span class="enneagram-label">💨 核心恐惧</span>
-            <p>${report.enneagram.fear}</p>
-          </div>
-          <div class="enneagram-item">
-            <span class="enneagram-label">🌱 成长方向</span>
-            <p>${report.enneagram.growth}</p>
-          </div>
-          <div class="enneagram-item">
-            <span class="enneagram-label">🤝 关系洞察</span>
-            <p>${report.enneagram.relation}</p>
+      // 渲染维度卡片
+      const dimCards = radar.querySelector<HTMLElement>('#dimension-cards');
+      if (dimCards) {
+        (Object.keys(report.dimensions) as DimensionKey[]).forEach(dim => {
+          const d = report.dimensions[dim];
+          const card = document.createElement('div');
+          card.className = 'dim-card fade-in-up';
+          card.innerHTML = window.SoulUtils.html`
+            <div class="dim-header">
+              <span class="dim-icon">${d.icon}</span>
+              <span class="dim-name">${d.name}</span>
+              <span class="dim-score">${d.score}</span>
+            </div>
+            <div class="dim-bar"><div class="dim-bar-fill" style="width:0%; background: linear-gradient(90deg, ${report.soulColor.from}, ${report.soulColor.to})"></div></div>
+            <p class="dim-text">${d.text}</p>
+          `;
+          dimCards.appendChild(card);
+        });
+
+        // 组合洞察
+        const combo = document.createElement('div');
+        combo.className = 'combination-insight fade-in-up';
+        combo.innerHTML = window.SoulUtils.html`<p class="insight-text">💎 ${report.combination}</p>`;
+        dimCards.appendChild(combo);
+      }
+
+      // 3. 九型人格
+      const ennea = createSection('report-enneagram');
+      ennea.innerHTML = window.SoulUtils.html`
+        <h2 class="section-title">🎭 灵魂深处</h2>
+        <div class="enneagram-card">
+          <div class="enneagram-icon">${report.enneagram.icon}</div>
+          <h3 class="enneagram-name">${report.enneagram.name}</h3>
+          <p class="enneagram-subtitle">九型人格 · 第${report.enneagram.type}型</p>
+          <div class="enneagram-detail">
+            <div class="enneagram-item">
+              <span class="enneagram-label">🔥 核心动机</span>
+              <p>${report.enneagram.motivation}</p>
+            </div>
+            <div class="enneagram-item">
+              <span class="enneagram-label">💨 核心恐惧</span>
+              <p>${report.enneagram.fear}</p>
+            </div>
+            <div class="enneagram-item">
+              <span class="enneagram-label">🌱 成长方向</span>
+              <p>${report.enneagram.growth}</p>
+            </div>
+            <div class="enneagram-item">
+              <span class="enneagram-label">🤝 关系洞察</span>
+              <p>${report.enneagram.relation}</p>
+            </div>
           </div>
         </div>
-      </div>
-    `;
-    container.appendChild(ennea);
+      `;
+      container.appendChild(ennea);
 
-    // 4. 灵魂暗面
-    const shadow = createSection('report-shadow');
-    shadow.innerHTML = window.SoulUtils.html`
-      <h2 class="section-title">🌑 灵魂暗面</h2>
-      <div class="shadow-card">
-        <p class="shadow-text">${report.shadow.text}</p>
-        <div class="shadow-detail">
-          <div class="shadow-item">
-            <span class="shadow-label">⚡ 内在冲突</span>
-            <p>${report.shadow.conflict}</p>
-          </div>
-          <div class="shadow-item">
-            <span class="shadow-label">🌊 压力反应</span>
-            <p>${report.shadow.stress}</p>
-          </div>
-        </div>
-      </div>
-    `;
-    container.appendChild(shadow);
-
-    // 5. 成长路径
-    const growth = createSection('report-growth');
-    const growthTitle = window.SoulUtils.el('h2', {className:'section-title'}, '🌱 灵魂成长路径');
-    const growthList = window.SoulUtils.el('div', {className:'growth-list'});
-    report.growth.forEach((g, i) => {
-      const card = window.SoulUtils.el('div', {className:'growth-card fade-in-up', style:{animationDelay: (i * 0.15) + 's'}});
-      card.appendChild(window.SoulUtils.el('h3', {className:'growth-title'}, g.title));
-      card.appendChild(window.SoulUtils.el('p', {className:'growth-text'}, g.text));
-      card.appendChild(window.SoulUtils.el('p', {className:'growth-psych'}, '📚 ', g.psychology));
-      growthList.appendChild(card);
-    });
-    growth.appendChild(growthTitle);
-    growth.appendChild(growthList);
-    container.appendChild(growth);
-
-    // 6. 灵魂共鸣
-    const resonance = createSection('report-resonance');
-    resonance.innerHTML = window.SoulUtils.html`
-      <h2 class="section-title">💫 灵魂共鸣</h2>
-      <div class="resonance-card">
-        <div class="resonance-compatible">
-          <span class="resonance-label">🤝 最契合的灵魂类型</span>
-          <div class="compatible-tags">
-            ${report.resonance.compatible.map(function(t) { return window.SoulUtils.html`<span class="compatible-tag">${t}</span>`; })}
+      // 4. 灵魂暗面
+      const shadow = createSection('report-shadow');
+      shadow.innerHTML = window.SoulUtils.html`
+        <h2 class="section-title">🌑 灵魂暗面</h2>
+        <div class="shadow-card">
+          <p class="shadow-text">${report.shadow.text}</p>
+          <div class="shadow-detail">
+            <div class="shadow-item">
+              <span class="shadow-label">⚡ 内在冲突</span>
+              <p>${report.shadow.conflict}</p>
+            </div>
+            <div class="shadow-item">
+              <span class="shadow-label">🌊 压力反应</span>
+              <p>${report.shadow.stress}</p>
+            </div>
           </div>
         </div>
-        <p class="resonance-advice">${report.resonance.advice}</p>
-        <div class="resonance-blessing">
-          <p class="blessing-text">「${report.resonance.blessing}」</p>
-        </div>
-      </div>
-      <div class="disclaimer">
-        <p>📋 本报告基于大五人格模型（OCEAN）和九型人格理论生成，仅供娱乐参考。<br>
-        心理学人格测评应由专业机构在规范环境下进行。<br>
-        如有需要，请拨打全国心理援助热线：400-161-9995</p>
-      </div>
-    `;
-    container.appendChild(resonance);
+      `;
+      container.appendChild(shadow);
 
-    // 绘制雷达图
-    requestAnimationFrame(() => {
-      drawRadarChart(scores, report.soulColor);
-      animateDimensionBars();
-    });
+      // 5. 成长路径
+      const growth = createSection('report-growth');
+      const growthTitle = window.SoulUtils.el('h2', {className:'section-title'}, '🌱 灵魂成长路径');
+      const growthList = window.SoulUtils.el('div', {className:'growth-list'});
+      report.growth.forEach((g: GrowthItem, i: number) => {
+        const card = window.SoulUtils.el('div', {className:'growth-card fade-in-up', style:{animationDelay: (i * 0.15) + 's'}});
+        card.appendChild(window.SoulUtils.el('h3', {className:'growth-title'}, g.title));
+        card.appendChild(window.SoulUtils.el('p', {className:'growth-text'}, g.text));
+        card.appendChild(window.SoulUtils.el('p', {className:'growth-psych'}, '📚 ', g.psychology));
+        growthList.appendChild(card);
+      });
+      growth.appendChild(growthTitle);
+      growth.appendChild(growthList);
+      container.appendChild(growth);
+
+      // 6. 灵魂共鸣
+      const resonance = createSection('report-resonance');
+      resonance.innerHTML = window.SoulUtils.html`
+        <h2 class="section-title">💫 灵魂共鸣</h2>
+        <div class="resonance-card">
+          <div class="resonance-compatible">
+            <span class="resonance-label">🤝 最契合的灵魂类型</span>
+            <div class="compatible-tags">
+              ${report.resonance.compatible.map((t: string) => window.SoulUtils.html`<span class="compatible-tag">${t}</span>`)}
+            </div>
+          </div>
+          <p class="resonance-advice">${report.resonance.advice}</p>
+          <div class="resonance-blessing">
+            <p class="blessing-text">「${report.resonance.blessing}」</p>
+          </div>
+        </div>
+        <div class="disclaimer">
+          <p>📋 本报告基于大五人格模型（OCEAN）和九型人格理论生成，仅供娱乐参考。<br>
+          心理学人格测评应由专业机构在规范环境下进行。<br>
+          如有需要，请拨打全国心理援助热线：400-161-9995</p>
+        </div>
+      `;
+      container.appendChild(resonance);
+
+      // 绘制雷达图
+      requestAnimationFrame(() => {
+        drawRadarChart(scores, report.soulColor);
+        animateDimensionBars();
+      });
     } catch (err) {
       console.error('[SoulUI] 报告渲染失败:', err);
-      SoulUI.showError('报告渲染失败，请刷新页面重试。');
+      window.SoulUI.showError('报告渲染失败，请刷新页面重试。');
     }
   }
 
-  function createSection(id) {
+  function createSection(id: string): HTMLElement {
     const section = document.createElement('section');
     section.id = id;
     section.className = 'report-section';
@@ -770,8 +785,23 @@ window.SoulUI = (() => {
 
   // ═══ 雷达图绘制 ═══
 
-  function drawRadarChart(scores, color) {
-    const canvas = document.getElementById('radar-canvas');
+  interface RadarParams {
+    ctx: CanvasRenderingContext2D;
+    cx: number;
+    cy: number;
+    radius: number;
+    dims: string[];
+    labels: string[];
+    icons: string[];
+    n: number;
+    angleStep: number;
+    startAngle: number;
+    scores: NormalizedScores;
+    color: { from: string; to: string };
+  }
+
+  function drawRadarChart(scores: NormalizedScores, color: { from: string; to: string }): void {
+    const canvas = document.getElementById('radar-canvas') as HTMLCanvasElement | null;
     if (!canvas) return;
 
     const dpr = window.devicePixelRatio || 1;
@@ -782,6 +812,7 @@ window.SoulUI = (() => {
     canvas.style.height = size + 'px';
 
     const ctx = canvas.getContext('2d');
+    if (!ctx) return;
     ctx.scale(dpr, dpr);
 
     const cx = size / 2;
@@ -794,10 +825,10 @@ window.SoulUI = (() => {
     const angleStep = (Math.PI * 2) / n;
     const startAngle = -Math.PI / 2;
 
-    const params = { ctx, cx, cy, radius, dims, labels, icons, n, angleStep, startAngle, scores, color };
+    const params: RadarParams = { ctx, cx, cy, radius, dims, labels, icons, n, angleStep, startAngle, scores, color };
 
     // 绘制静态元素（网格 + 轴线 + 标签）
-    function drawStatic(p) {
+    function drawStatic(p: RadarParams): void {
       const { ctx, cx, cy, radius, dims, labels, icons, n, angleStep, startAngle, scores } = p;
 
       // 网格线
@@ -837,7 +868,7 @@ window.SoulUI = (() => {
         ctx.fillText(icons[i] + ' ' + labels[i], cx + Math.cos(angle) * (radius + 28), cy + Math.sin(angle) * (radius + 28));
         ctx.fillStyle = '#f0c27f';
         ctx.font = 'bold 13px sans-serif';
-        ctx.fillText(scores[dims[i]], cx + Math.cos(angle) * (radius + 46), cy + Math.sin(angle) * (radius + 46));
+        ctx.fillText(String(scores[dims[i]]), cx + Math.cos(angle) * (radius + 46), cy + Math.sin(angle) * (radius + 46));
       }
     }
 
@@ -845,13 +876,13 @@ window.SoulUI = (() => {
     let progress = 0;
     const duration = CONST.RADAR_ANIMATION_FRAMES;
 
-    function frame() {
+    function frame(): void {
       progress++;
       const t = Math.min(progress / duration, 1);
       const ease = 1 - Math.pow(1 - t, 3);
 
       // 清除画布，重绘静态元素
-      ctx.clearRect(0, 0, size, size);
+      ctx!.clearRect(0, 0, size, size);
       drawStatic(params);
 
       // 计算数据点
@@ -862,27 +893,27 @@ window.SoulUI = (() => {
       });
 
       // 填充区域
-      ctx.beginPath();
-      points.forEach((p, i) => { if (i === 0) ctx.moveTo(p.x, p.y); else ctx.lineTo(p.x, p.y); });
-      ctx.closePath();
-      const gradient = ctx.createRadialGradient(cx, cy, 0, cx, cy, radius);
+      ctx!.beginPath();
+      points.forEach((p, i) => { if (i === 0) ctx!.moveTo(p.x, p.y); else ctx!.lineTo(p.x, p.y); });
+      ctx!.closePath();
+      const gradient = ctx!.createRadialGradient(cx, cy, 0, cx, cy, radius);
       gradient.addColorStop(0, color.from + '60');
       gradient.addColorStop(1, color.to + '30');
-      ctx.fillStyle = gradient;
-      ctx.fill();
-      ctx.strokeStyle = color.from;
-      ctx.lineWidth = 2;
-      ctx.stroke();
+      ctx!.fillStyle = gradient;
+      ctx!.fill();
+      ctx!.strokeStyle = color.from;
+      ctx!.lineWidth = 2;
+      ctx!.stroke();
 
       // 数据点
       points.forEach(p => {
-        ctx.beginPath();
-        ctx.arc(p.x, p.y, 4, 0, Math.PI * 2);
-        ctx.fillStyle = color.from;
-        ctx.fill();
-        ctx.strokeStyle = '#fff';
-        ctx.lineWidth = 1.5;
-        ctx.stroke();
+        ctx!.beginPath();
+        ctx!.arc(p.x, p.y, 4, 0, Math.PI * 2);
+        ctx!.fillStyle = color.from;
+        ctx!.fill();
+        ctx!.strokeStyle = '#fff';
+        ctx!.lineWidth = 1.5;
+        ctx!.stroke();
       });
 
       if (t < 1) requestAnimationFrame(frame);
@@ -893,21 +924,21 @@ window.SoulUI = (() => {
     setTimeout(() => { progress = 0; requestAnimationFrame(frame); }, 300);
   }
 
-  function animateDimensionBars() {
+  function animateDimensionBars(): void {
     // 先设置目标宽度，再启动动画
-    const cards = document.querySelectorAll('.dim-card');
+    const cards = document.querySelectorAll<HTMLElement>('.dim-card');
     cards.forEach(card => {
-      const score = card.querySelector('.dim-score');
-      const bar = card.querySelector('.dim-bar-fill');
+      const score = card.querySelector<HTMLElement>('.dim-score');
+      const bar = card.querySelector<HTMLElement>('.dim-bar-fill');
       if (score && bar) {
-        bar.style.width = parseInt(score.textContent) + '%';
+        bar.style.width = parseInt(score.textContent || '0', 10) + '%';
       }
     });
   }
 
   // ═══ 星空背景 ═══
 
-  function drawStarfield() {
+  function drawStarfield(): void {
     const canvas = els.canvas;
     if (!canvas) return;
 
@@ -918,11 +949,12 @@ window.SoulUI = (() => {
     canvas.style.height = '100%';
 
     const ctx = canvas.getContext('2d');
+    if (!ctx) return;
     ctx.scale(dpr, dpr);
 
     const w = window.innerWidth;
     const h = window.innerHeight;
-    const stars = [];
+    const stars: StarFieldStar[] = [];
     const starCount = window.innerWidth < 768 ? CONST.STARFIELD_MOBILE_MAX : CONST.STARFIELD_DESKTOP_MAX;
 
     for (let i = 0; i < starCount; i++) {
@@ -937,15 +969,15 @@ window.SoulUI = (() => {
     }
 
     let time = 0;
-    function animate() {
-      ctx.clearRect(0, 0, w, h);
+    function animate(): void {
+      ctx!.clearRect(0, 0, w, h);
 
       stars.forEach(star => {
         const alpha = star.alpha * (0.6 + 0.4 * Math.sin(time * star.speed + star.phase));
-        ctx.beginPath();
-        ctx.arc(star.x, star.y, star.radius, 0, Math.PI * 2);
-        ctx.fillStyle = `rgba(255, 255, 255, ${alpha})`;
-        ctx.fill();
+        ctx!.beginPath();
+        ctx!.arc(star.x, star.y, star.radius, 0, Math.PI * 2);
+        ctx!.fillStyle = `rgba(255, 255, 255, ${alpha})`;
+        ctx!.fill();
       });
 
       time++;
@@ -958,37 +990,37 @@ window.SoulUI = (() => {
       canvas.width = window.innerWidth * dpr;
       canvas.height = window.innerHeight * dpr;
       // 重算星星坐标
-      const w = window.innerWidth;
-      const h = window.innerHeight;
+      const rw = window.innerWidth;
+      const rh = window.innerHeight;
       stars.forEach(star => {
-        star.x = Math.random() * w;
-        star.y = Math.random() * h;
+        star.x = Math.random() * rw;
+        star.y = Math.random() * rh;
       });
     });
   }
 
   // ═══ 分享与重新开始 ═══
 
-  function shareReport() {
+  function shareReport(): void {
     if (!state.result || !state.report) return;
     try {
       window.SoulShare.copyShareLink(state.result.scores, state.result.enneagram);
     } catch (err) {
       console.error('[SoulUI] 分享失败:', err);
-      SoulUI.showError('链接复制失败，请手动复制页面地址。');
+      window.SoulUI.showError('链接复制失败，请手动复制页面地址。');
     }
   }
 
-  function saveReport() {
-    window.SoulShare.captureReport().catch(err => {
+  function saveReport(): void {
+    window.SoulShare.captureReport().catch((err: unknown) => {
       console.error('[SoulUI] 保存图片失败:', err);
     });
   }
 
-  async function restart() {
+  async function restart(): Promise<void> {
     // 如果已有报告，先弹窗确认
     if (state.result || state.report) {
-      const confirmed = await SoulUI.showConfirm('重新测试', '当前报告将丢失，确认重新开始？');
+      const confirmed = await window.SoulUI.showConfirm('重新测试', '当前报告将丢失，确认重新开始？');
       if (!confirmed) return;
     }
     clearSavedProgress();
@@ -1001,14 +1033,14 @@ window.SoulUI = (() => {
 
   // ═══ 共享链接报告 ═══
 
-  function showSharedReport(shared) {
+  function showSharedReport(shared: SharedReportData): void {
     showScreen('loading');
     startLoadingAnimation();
 
     setTimeout(() => {
       try {
         const enneagram = window.SoulScoring.matchEnneagram(shared.scores);
-        state.result = { scores: shared.scores, enneagram };
+        state.result = { scores: shared.scores, enneagram } as EvaluationResult;
         state.report = window.SoulReport.generate(shared.scores, enneagram);
         state.answers = [];
 
@@ -1018,7 +1050,7 @@ window.SoulUI = (() => {
       } catch (err) {
         console.error('[SoulUI] 共享报告生成失败:', err);
         stopLoadingAnimation();
-        SoulUI.showError('报告加载失败，请重新测试。');
+        window.SoulUI.showError('报告加载失败，请重新测试。');
         showScreen('welcome');
       }
     }, CONST.SHARED_REPORT_DELAY);
@@ -1030,8 +1062,8 @@ window.SoulUI = (() => {
     /**
      * 显示错误提示（静态方法，可在全局错误处理中调用）
      */
-    showError(msg) {
-      const toast = document.getElementById('error-toast');
+    showError(msg: string): void {
+      const toast = document.getElementById('error-toast') as ToastElement | null;
       if (!toast) return;
       toast.textContent = msg;
       toast.style.display = 'block';
@@ -1039,17 +1071,14 @@ window.SoulUI = (() => {
       // force reflow
       void toast.offsetHeight;
       toast.style.animation = 'fadeIn 0.3s';
-      clearTimeout(toast._hideTimer);
+      if (toast._hideTimer) clearTimeout(toast._hideTimer);
       toast._hideTimer = setTimeout(() => { toast.style.display = 'none'; }, CONST.TOAST_DISPLAY_MS);
     },
 
     /**
      * 显示确认弹窗
-     * @param {string} title
-     * @param {string} text
-     * @returns {Promise<boolean>}
      */
-    showConfirm(title, text) {
+    showConfirm(title: string, text: string): Promise<boolean> {
       return new Promise(resolve => {
         const overlay = document.createElement('div');
         overlay.className = 'modal-overlay';
@@ -1064,11 +1093,11 @@ window.SoulUI = (() => {
           </div>
         `;
         document.body.appendChild(overlay);
-        overlay.querySelector('.modal-btn-cancel').addEventListener('click', () => {
+        overlay.querySelector('.modal-btn-cancel')!.addEventListener('click', () => {
           overlay.remove();
           resolve(false);
         });
-        overlay.querySelector('.modal-btn-confirm').addEventListener('click', () => {
+        overlay.querySelector('.modal-btn-confirm')!.addEventListener('click', () => {
           overlay.remove();
           resolve(true);
         });

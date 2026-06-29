@@ -1,13 +1,12 @@
-// @ts-nocheck
 /**
- * report.js — 灵魂解码报告生成引擎
- * 根据 OCEAN 五维得分和九型人格，生成完整个性化灵魂报告
+ * report.ts — 灵魂解码报告生成引擎
+ * OCEAN 五维得分 + 九型人格 → 完整个性化灵魂报告
  */
 
 window.SoulReport = (() => {
 
   // ═══ 灵魂类型标题 ═══
-  const SOUL_TITLES = [
+  const SOUL_TITLES: SoulTitleRule[] = [
     { check: (s) => s.openness >= 75 && s.neuroticism >= 75, title: '深海梦想家' },
     { check: (s) => s.openness >= 75 && s.extraversion <= 35, title: '星夜独行者' },
     { check: (s) => s.openness >= 75 && s.extraversion >= 75, title: '光芒探险家' },
@@ -35,7 +34,7 @@ window.SoulReport = (() => {
   ];
 
   // ═══ 五维灵魂文案（5维 × 5档 = 25段，每段独特） ═══
-  const DIMENSION_TEXTS = {
+  const DIMENSION_TEXTS: Record<DimensionKey, LevelTextMap> = {
     openness: {
       veryHigh: '你的好奇心几乎没有边界。你不只是喜欢新事物——你需要新事物，就像呼吸需要空气。你的思维是一张不断扩展的地图，每一条未走过的路都在召唤你。你对抽象概念的领悟力和对美的直觉，让你能在别人只看到混乱的地方发现模式。',
       high: '你的灵魂对未知保持着持续的热情。你喜欢探索不同领域的知识，愿意尝试与自己经验不同的事物。你享受思考"如果……会怎样"这类问题，想象力是你日常思维的一部分。',
@@ -74,7 +73,7 @@ window.SoulReport = (() => {
   };
 
   // ═══ 维度组合洞察（精选 10 种关键组合，每种 3 档 = 30 段） ═══
-  const COMBO_INSIGHTS = {
+  const COMBO_INSIGHTS: Record<string, ComboTextMap> = {
     'openness_extraversion': {
       bothHigh: '你的灵魂同时拥有广度和亮度——你既探索世界的每一个角落，又照亮每一个你经过的地方。',
       mixed: '你的内心有一座巨大的花园，但你有选择地邀请访客。你渴望连接，但只在真正触动你灵魂的时刻才完全绽放。',
@@ -128,7 +127,7 @@ window.SoulReport = (() => {
   };
 
   // ═══ 九型人格完整文案（9种 × 4字段 = 36段） ═══
-  const ENNEAGRAM_TEXTS = {
+  const ENNEAGRAM_TEXTS: Record<number, EnneagramTextMap> = {
     1: {
       motivation: '你内心深处燃烧着对"正确"的渴望。你相信世界应该有秩序、有标准、有底线，而你愿意成为那个守护标准的人。你的动力来自一种内在的声音——它告诉你，事情可以做得更好。',
       fear: '你最深的恐惧是犯错、堕落或失去道德指南针。你害怕被内心的"不够好"所吞噬，害怕在最重要的时刻做出错误的选择。这种恐惧驱使你不断追求完美。',
@@ -186,7 +185,7 @@ window.SoulReport = (() => {
   };
 
   // ═══ 灵魂暗面文案（3字段 × 5档 = 15段） ═══
-  const SHADOW_TEXTS = {
+  const SHADOW_TEXTS: ShadowLevelTexts = {
     text: {
       veryHigh: '你的灵魂暗面是一片深不可测的海洋。你的敏感让你能够感知到别人看不到的暗流——那些细微的变化、未说出口的情绪、空气中若有若无的紧张。这种深度感知力既是天赋，也是负担。当你不加控制时，它可能将你卷入焦虑和过度思考的漩涡，让你在别人已经安然入睡的深夜里反复咀嚼每一个细节。',
       high: '你的内心有一个"放大镜"——它能放大你感知到的一切威胁和不确定。别人的无心之言可能在你心里翻来覆去地回放，一个微小的失误可能让你自责很久。这种深度的敏感让你拥有极强的共情力，但也意味着你比大多数人更容易被情绪的暗流裹挟。',
@@ -211,7 +210,7 @@ window.SoulReport = (() => {
   };
 
   // ═══ 成长建议池（12条，根据短板选取3条） ═══
-  const GROWTH_POOL = {
+  const GROWTH_POOL: Record<DimensionKey, GrowthPoolEntry> = {
     openness: {
       title: '🔥 点燃探索之火',
       text: '尝试每周做一件你从未做过的事——哪怕只是走一条新的路回家，吃一种没尝过的食物，读一本不在你书单上的书。好奇心是一块肌肉，越用越强。',
@@ -240,7 +239,7 @@ window.SoulReport = (() => {
   };
 
   // ═══ 总述模板（20条，根据标签选取） ═══
-  const SUMMARY_TEMPLATES = [
+  const SUMMARY_TEMPLATES: string[] = [
     '你的灵魂是一颗多面的宝石，每一面都折射出不同的光芒。{combo}，这种独特的组合造就了你不可复制的灵魂色彩。',
     '在你的灵魂深处，{dim1}与{dim2}交织成一幅复杂的画卷。你不是非黑即白的——你是光与影完美交融的那个存在。',
     '你是一个{tag1}的灵魂，同时也是一个{tag2}。你的魅力恰恰在于这些看似矛盾的特质在你身上和谐共存。',
@@ -264,7 +263,7 @@ window.SoulReport = (() => {
   ];
 
   // ═══ 灵魂寄语（10条） ═══
-  const BLESSINGS = [
+  const BLESSINGS: string[] = [
     '愿你的灵魂永远保持那份独特的光芒，照亮你前行的每一步路。',
     '在人生的旅途中，愿你既有勇气面对暗面，也有智慧拥抱光明。',
     '你的灵魂比你想象的更强大。相信它，它会带你去该去的地方。',
@@ -278,7 +277,7 @@ window.SoulReport = (() => {
   ];
 
   // ═══ 灵魂配色映射 ═══
-  const COLOR_MAP = {
+  const COLOR_MAP: Record<DimensionKey, { from: string; to: string }> = {
     openness: { from: '#667eea', to: '#764ba2' },
     conscientiousness: { from: '#f093fb', to: '#f5576c' },
     extraversion: { from: '#f0c27f', to: '#fc4a1a' },
@@ -287,7 +286,7 @@ window.SoulReport = (() => {
   };
 
   // ═══ 自然现象描述 ═══
-  const PHENOMENA = [
+  const PHENOMENA: Phenomenon[] = [
     { phenomenon: '北极光', desc: '变幻莫测却始终美丽，在寂静的夜空中绽放出令人屏息的色彩' },
     { phenomenon: '深海暖流', desc: '表面波澜不惊，内心却蕴含着改变整个海洋温度的力量' },
     { phenomenon: '流星', desc: '短暂却耀眼，在划过天际的瞬间点燃无数人的愿望' },
@@ -296,12 +295,12 @@ window.SoulReport = (() => {
   ];
 
   // ═══ 共享常量（避免 generate() 和 getDimName 重复定义） ═══
-  const DIM_NAMES = { openness: '开放性', conscientiousness: '尽责性', extraversion: '外向性', agreeableness: '宜人性', neuroticism: '神经质' };
-  const DIM_ICONS = { openness: '✨', conscientiousness: '🏛️', extraversion: '🌊', agreeableness: '💚', neuroticism: '🌙' };
+  const DIM_NAMES: Record<DimensionKey, string> = { openness: '开放性', conscientiousness: '尽责性', extraversion: '外向性', agreeableness: '宜人性', neuroticism: '神经质' };
+  const DIM_ICONS: Record<DimensionKey, string> = { openness: '✨', conscientiousness: '🏛️', extraversion: '🌊', agreeableness: '💚', neuroticism: '🌙' };
 
   // ═══ 辅助函数 ═══
 
-  function getLevel(score) {
+  function getLevel(score: number): SoulLevel {
     if (score >= 82) return 'veryHigh';
     if (score >= 62) return 'high';
     if (score >= 45) return 'midHigh';
@@ -309,35 +308,34 @@ window.SoulReport = (() => {
     return 'low';
   }
 
-  function getDominantDimensions(scores) {
-    return Object.entries(scores)
+  function getDominantDimensions(scores: NormalizedScores): DimensionKey[] {
+    return (Object.entries(scores) as [string, number][])
       .sort((a, b) => b[1] - a[1])
-      .map(e => e[0]);
+      .map((e) => e[0] as DimensionKey);
   }
 
-  function getWeakestDimensions(scores) {
-    return Object.entries(scores)
+  function getWeakestDimensions(scores: NormalizedScores): DimensionKey[] {
+    return (Object.entries(scores) as [string, number][])
       .sort((a, b) => a[1] - b[1])
-      .map(e => e[0]);
+      .map(e => e[0] as DimensionKey);
   }
 
-  function pickSoulTitle(scores) {
+  function pickSoulTitle(scores: NormalizedScores): string {
     for (const item of SOUL_TITLES) {
       if (item.check(scores)) return item.title;
     }
     return '灵魂旅人';
   }
 
-  function pickComboKey(dim1, dim2) {
-    // 组合 key 的顺序
-    const order = ['openness', 'conscientiousness', 'extraversion', 'agreeableness', 'neuroticism'];
-    const i1 = order.indexOf(dim1);
-    const i2 = order.indexOf(dim2);
+  function pickComboKey(dim1: string, dim2: string): string | null {
+    const order: DimensionKey[] = ['openness', 'conscientiousness', 'extraversion', 'agreeableness', 'neuroticism'];
+    const i1 = order.indexOf(dim1 as DimensionKey);
+    const i2 = order.indexOf(dim2 as DimensionKey);
     if (i1 < 0 || i2 < 0) return null;
     return i1 < i2 ? `${dim1}_${dim2}` : `${dim2}_${dim1}`;
   }
 
-  function getComboText(dim1, dim2, scores) {
+  function getComboText(dim1: string, dim2: string, scores: NormalizedScores): string {
     const key = pickComboKey(dim1, dim2);
     if (!key || !COMBO_INSIGHTS[key]) return '';
 
@@ -350,7 +348,7 @@ window.SoulReport = (() => {
     return combo.mixed;
   }
 
-  function fillTemplate(template, data) {
+  function fillTemplate(template: string, data: Record<string, string>): string {
     let result = template;
     Object.keys(data).forEach(key => {
       result = result.replace(new RegExp(`\\{${key}\\}`, 'g'), data[key]);
@@ -360,7 +358,7 @@ window.SoulReport = (() => {
 
   // ═══ 主生成函数 ═══
 
-  function generate(scores, enneagram) {
+  function generate(scores: NormalizedScores, enneagram: EnneagramResult): SoulReportData {
     const dim1 = getDominantDimensions(scores)[0];
     const dim2 = getDominantDimensions(scores)[1];
     const weakest = getWeakestDimensions(scores).slice(0, 2);
@@ -394,9 +392,9 @@ window.SoulReport = (() => {
     });
 
     // 4. 五维详情
-    const dimensions = {};
+    const dimensions = {} as Record<DimensionKey, DimensionDetail>;
 
-    Object.keys(DIM_NAMES).forEach(dim => {
+    (Object.keys(DIM_NAMES) as DimensionKey[]).forEach(dim => {
       const level = getLevel(scores[dim]);
       dimensions[dim] = {
         score: scores[dim],
@@ -415,7 +413,7 @@ window.SoulReport = (() => {
 
     // 7. 灵魂暗面
     const neuroLevel = getLevel(scores.neuroticism);
-    const shadow = {
+    const shadow: ShadowDetail = {
       title: '灵魂暗面',
       level: neuroLevel,
       text: SHADOW_TEXTS.text[neuroLevel],
@@ -424,7 +422,7 @@ window.SoulReport = (() => {
     };
 
     // 8. 成长建议（取最弱的 2-3 个维度）
-    const growth = weakest.map(dim => ({
+    const growth: GrowthItem[] = weakest.map(dim => ({
       title: GROWTH_POOL[dim].title,
       text: GROWTH_POOL[dim].text,
       psychology: GROWTH_POOL[dim].psychology
@@ -445,7 +443,7 @@ window.SoulReport = (() => {
     // 9. 共鸣
     const blessingIdx = (scores.openness + scores.neuroticism) % BLESSINGS.length;
     const compatible = getCompatibleTypes(enneagram.type, scores);
-    const resonance = {
+    const resonance: ResonanceDetail = {
       compatible,
       advice: getRelationshipAdvice(scores.agreeableness, scores.extraversion),
       blessing: BLESSINGS[blessingIdx]
@@ -473,24 +471,23 @@ window.SoulReport = (() => {
   }
 
   // ═══ 辅助：维度名称 ═══
-  function getDimName(dim) {
-    return DIM_NAMES[dim] || dim;
+  function getDimName(dim: string): string {
+    return DIM_NAMES[dim as DimensionKey] || dim;
   }
 
-  function getDimLevelDesc(dim, score) {
+  function getDimLevelDesc(dim: string, score: number): string {
     const level = getLevel(score);
-    const descs = {
-      openness: { high: '无限好奇', mid: '平衡探索', low: '脚踏实地' },
-      conscientiousness: { high: '钢铁意志', mid: '张弛有度', low: '自由不羁' },
-      extraversion: { high: '光芒四射', mid: '收放自如', low: '深邃内敛' },
-      agreeableness: { high: '温暖如春', mid: '善良有度', low: '真实坦率' },
-      neuroticism: { high: '深邃感知', mid: '潮起潮落', low: '波澜不惊' }
+    const descs: Record<string, DimLevelDescs> = {
+      conscientiousness: { veryHigh: '钢铁意志', high: '钢铁意志', midHigh: '张弛有度', midLow: '自由不羁', low: '自由不羁' },
+      extraversion: { veryHigh: '光芒四射', high: '光芒四射', midHigh: '收放自如', midLow: '深邃内敛', low: '深邃内敛' },
+      agreeableness: { veryHigh: '温暖如春', high: '温暖如春', midHigh: '善良有度', midLow: '真实坦率', low: '真实坦率' },
+      neuroticism: { veryHigh: '深邃感知', high: '深邃感知', midHigh: '潮起潮落', midLow: '波澜不惊', low: '波澜不惊' }
     };
     return (descs[dim] && descs[dim][level]) || '独特';
   }
 
-  function getScenario(dim, level) {
-    const scenarios = {
+  function getScenario(dim: string, level: string): string {
+    const scenarios: Record<string, Record<string, string>> = {
       openness: { high: '未知的星空下', low: '熟悉的壁炉旁' },
       conscientiousness: { high: '精密的蓝图中', low: '自由的风里' },
       extraversion: { high: '热闹的人群中', low: '安静的书房里' },
@@ -501,34 +498,27 @@ window.SoulReport = (() => {
   }
 
   // ═══ 辅助：匹配类型 ═══
-  function getCompatibleTypes(type, scores) {
-    // 基于用户实际得分，动态计算最契合的九型人格类型
-    // 原理：找与用户得分模式"互补"的类型——用户较弱的维度，对方较强
+  function getCompatibleTypes(type: number, scores: NormalizedScores): string[] {
     const allTypes = window.SoulScoring.getEnneagramPatterns();
-
-    // 排除自身
     const candidates = allTypes.filter(t => t.type !== type);
 
-    // 计算互补分：用户得分越低的维度 × 对方权重越高 = 越互补
     const complementaryScores = candidates.map(t => {
       let score = 0;
-      const dimKeys = ['openness', 'conscientiousness', 'extraversion', 'agreeableness', 'neuroticism'];
-      dimKeys.forEach(dim => {
+      const dimKeys: DimensionKey[] = ['openness', 'conscientiousness', 'extraversion', 'agreeableness', 'neuroticism'];
+      dimKeys.forEach((dim: DimensionKey) => {
         const userScore = scores[dim] || 50;
         const weight = (t.w && t.w[dim] && t.w[dim].w) || 0.5;
-        // 互补评分 = 用户偏弱(score越低) × 对方该维度的权重越高
         score += (100 - userScore) * weight;
       });
       return { type: t, score };
     });
 
-    // 按互补分从高到低排序，取前 2 个
     const best = complementaryScores.sort((a, b) => b.score - a.score).slice(0, 2);
     return best.map(t => t.type.name);
   }
 
   // ═══ 辅助：关系建议 ═══
-  function getRelationshipAdvice(agree, extra) {
+  function getRelationshipAdvice(agree: number, extra: number): string {
     if (agree >= 67 && extra >= 67) return '你在关系中是天然的给予者。记住，最健康的关系是双向的——也要学会接受他人的爱和关怀。';
     if (agree >= 67 && extra < 34) return '你用无声的温柔守护着身边的人。试着更主动地表达你的感受，让爱你的人知道你的心意。';
     if (agree < 34 && extra >= 67) return '你的直率和活力让人着迷。在关系中，试着给对方多一些耐心和空间，真正的连接需要温柔的土壤。';

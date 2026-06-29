@@ -121,7 +121,7 @@ interface ResonanceDetail {
   blessing: string;
 }
 
-interface SoulReport {
+interface SoulReportData {
   soulType: string;
   soulColor: { from: string; to: string };
   summary: string;
@@ -133,6 +133,120 @@ interface SoulReport {
   resonance: ResonanceDetail;
 }
 
+// ═══ UI 类型 ═══
+
+interface ElementRefMap {
+  welcome: HTMLElement | null;
+  quiz: HTMLElement | null;
+  loading: HTMLElement | null;
+  report: HTMLElement | null;
+  progressBar: HTMLElement | null;
+  progressText: HTMLElement | null;
+  questionArea: HTMLElement | null;
+  btnStart: HTMLElement | null;
+  btnBack: HTMLElement | null;
+  btnRestart: HTMLElement | null;
+  btnShare: HTMLElement | null;
+  btnSave: HTMLElement | null;
+  reportContainer: HTMLElement | null;
+  canvas: HTMLCanvasElement | null;
+}
+
+interface UIAnswer {
+  questionId: number;
+  choice: string | number | string[];
+}
+
+interface UIState {
+  currentQuestion: number;
+  answers: UIAnswer[];
+  result: EvaluationResult | null;
+  report: SoulReportData | null;
+  phase: 'welcome' | 'quiz' | 'loading' | 'report';
+}
+
+interface LoadingParticle {
+  angle: number;
+  dist: number;
+  speed: number;
+  radius: number;
+  shrink: number;
+  color: string;
+}
+
+interface StarFieldStar {
+  x: number;
+  y: number;
+  radius: number;
+  alpha: number;
+  speed: number;
+  phase: number;
+}
+
+interface ToastElement extends HTMLElement {
+  _hideTimer?: ReturnType<typeof setTimeout>;
+}
+
+interface SharedReportData {
+  scores: NormalizedScores;
+  enneagramType: number;
+}
+
+// ═══ 报告引擎类型 ═══
+
+type SoulLevel = 'veryHigh' | 'high' | 'midHigh' | 'midLow' | 'low';
+
+interface LevelTextMap {
+  veryHigh: string;
+  high: string;
+  midHigh: string;
+  midLow: string;
+  low: string;
+}
+
+interface ComboTextMap {
+  bothHigh: string;
+  mixed: string;
+  bothLow: string;
+}
+
+interface EnneagramTextMap {
+  motivation: string;
+  fear: string;
+  growth: string;
+  relation: string;
+}
+
+interface ShadowLevelTexts {
+  text: LevelTextMap;
+  conflict: LevelTextMap;
+  stress: LevelTextMap;
+}
+
+interface GrowthPoolEntry {
+  title: string;
+  text: string;
+  psychology: string;
+}
+
+interface Phenomenon {
+  phenomenon: string;
+  desc: string;
+}
+
+interface SoulTitleRule {
+  check: (s: NormalizedScores) => boolean;
+  title: string;
+}
+
+interface DimLevelDescs {
+  veryHigh: string;
+  high: string;
+  midHigh: string;
+  midLow: string;
+  low: string;
+}
+
 // ═══ Webhook 类型 ═══
 
 interface WebhookConfig {
@@ -140,6 +254,24 @@ interface WebhookConfig {
   proxyUrl: string;
   enabled: boolean;
   includeAnswers: boolean;
+}
+
+interface WebhookPayload {
+  timestamp: string;
+  sessionId: string;
+  soulType: string;
+  enneagramType: number;
+  enneagramName: string;
+  scores: NormalizedScores;
+  answers: WebhookAnswerDetail[];
+  reportDigest: string;
+  includeAnswers: boolean;
+}
+
+interface WebhookAnswerDetail {
+  qid: number;
+  choice: string | number | string[];
+  text: string;
 }
 
 // ═══ 全局命名空间声明 ═══
@@ -166,26 +298,32 @@ interface SoulScoringEngine {
 }
 
 interface SoulUtilsAPI {
-  esc(str: any): string;
-  el(tag: string, attrs: Record<string, any> | null, ...children: any[]): HTMLElement;
+  esc(str: unknown): string;
+  el(tag: string, attrs: Record<string, string | number | boolean | Record<string, string>> | null, ...children: Array<Node | string | number | null | undefined>): HTMLElement;
   empty(el: HTMLElement): void;
-  html(strings: TemplateStringsArray, ...values: any[]): string;
+  html(strings: TemplateStringsArray, ...values: unknown[]): string;
 }
 
 interface SoulReportAPI {
-  generate(scores: NormalizedScores, enneagram: EnneagramResult): SoulReport;
+  generate(scores: NormalizedScores, enneagram: EnneagramResult): SoulReportData;
 }
 
 interface SoulWebhookAPI {
   config: WebhookConfig;
-  send(result: EvaluationResult, report: SoulReport, answers: AnswerData[]): Promise<void>;
+  send(result: EvaluationResult, report: SoulReportData, answers: AnswerData[]): Promise<void>;
   _testReset(): void;
 }
 
 interface SoulShareAPI {
   captureReport(): Promise<void>;
   copyShareLink(scores: NormalizedScores, enneagram: { type: number }): void;
-  parseShareLink(): { scores: NormalizedScores; enneagramType: number } | null;
+  parseShareLink(): SharedReportData | null;
+  addWatermark(canvas: HTMLCanvasElement): void;
+  _signData(data: Record<string, unknown>): string;
+  loadScript(src: string, timeoutMs?: number): Promise<void>;
+  showTip(text: string): HTMLElement;
+  updateTip(el: HTMLElement, text: string): void;
+  showTemporaryTip(text: string): void;
 }
 
 interface SoulUIAPI {
@@ -205,4 +343,5 @@ interface Window {
   SoulShare: SoulShareAPI;
   SoulUI: SoulUIAPI;
   setupSoulDOM?: () => void;
+  html2canvas?: (el: HTMLElement, opts: Record<string, unknown>) => Promise<HTMLCanvasElement>;
 }

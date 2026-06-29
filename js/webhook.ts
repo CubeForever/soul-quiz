@@ -1,6 +1,5 @@
-// @ts-nocheck
 /**
- * webhook.js — 管理员数据回传模块
+ * webhook.ts — 管理员数据回传模块
  * 支持企业微信 / 飞书 / 钉钉，自动识别平台
  */
 
@@ -8,12 +7,12 @@ window.SoulWebhook = (() => {
 
   // ═══ 防抖与频率限制 ═══
   let lastSendTime = 0;
-  let pendingTimer = null;
+  let pendingTimer: ReturnType<typeof setTimeout> | null = null;
   const DEBOUNCE_MS = 3000;   // 3 秒内不重复推送
   const MAX_RETRIES = 1;
 
   // ═══ 管理员配置区 ═══
-  const ADMIN_CONFIG = {
+  const ADMIN_CONFIG: WebhookConfig = {
     // 你的 Webhook 地址（替换为实际地址）
     // ⚠️ 安全提醒：前端代码中的 URL 对用户可见。
     // 生产环境建议通过后端代理转发，而非直接暴露 Webhook URL。
@@ -35,7 +34,7 @@ window.SoulWebhook = (() => {
   /**
    * 自动识别平台
    */
-  function detectPlatform(url) {
+  function detectPlatform(url: string): string {
     if (url.includes('qyapi.weixin.qq.com')) return 'wecom';
     if (url.includes('open.feishu.cn')) return 'feishu';
     if (url.includes('oapi.dingtalk.com')) return 'dingtalk';
@@ -45,7 +44,7 @@ window.SoulWebhook = (() => {
   /**
    * 构建文本进度条
    */
-  function buildBar(value, max = 10) {
+  function buildBar(value: number, max: number = 10): string {
     const filled = Math.round((value / 100) * max);
     return '█'.repeat(filled) + '░'.repeat(max - filled);
   }
@@ -53,7 +52,7 @@ window.SoulWebhook = (() => {
   /**
    * 企业微信 Markdown 消息体
    */
-  function buildWecomMarkdown(payload) {
+  function buildWecomMarkdown(payload: WebhookPayload): Record<string, unknown> {
     const scores = payload.scores;
     const lines = [
       `🔮 **新的灵魂报告**`,
@@ -74,7 +73,7 @@ window.SoulWebhook = (() => {
 
     if (payload.includeAnswers && payload.answers.length > 0) {
       lines.push('', '🔑 **原始答案**：');
-      payload.answers.forEach((a, i) => {
+      payload.answers.forEach(function(a, i) {
         lines.push(`> ${i + 1}. ${a.text}`);
       });
     }
@@ -88,7 +87,7 @@ window.SoulWebhook = (() => {
   /**
    * 飞书交互式卡片消息体
    */
-  function buildFeishuCard(payload) {
+  function buildFeishuCard(payload: WebhookPayload): Record<string, unknown> {
     const scores = payload.scores;
     const scoreLines = [
       `开放性   ${buildBar(scores.openness)}  ${scores.openness}`,
@@ -98,7 +97,7 @@ window.SoulWebhook = (() => {
       `神经质   ${buildBar(scores.neuroticism)}  ${scores.neuroticism}`,
     ].join('\n');
 
-    const elements = [
+    const elements: Array<Record<string, unknown>> = [
       {
         tag: 'div',
         text: {
@@ -119,7 +118,7 @@ window.SoulWebhook = (() => {
     ];
 
     if (payload.includeAnswers && payload.answers.length > 0) {
-      const answerText = payload.answers.map((a, i) => `${i + 1}. ${a.text}`).join('\n');
+      const answerText = payload.answers.map((a, i) => i + 1 + '. ' + a.text).join('\n');
       elements.push(
         { tag: 'hr' },
         { tag: 'div', text: { tag: 'lark_md', content: `**🔑 原始答案**（共${payload.answers.length}题）\n${answerText}` } }
@@ -142,20 +141,20 @@ window.SoulWebhook = (() => {
   /**
    * 通用 JSON 消息体
    */
-  function buildGeneric(payload) {
+  function buildGeneric(payload: WebhookPayload): WebhookPayload {
     return payload;
   }
 
   /**
    * 构造推送数据
    */
-  function buildPayload(result, report, answers) {
-    const answerDetails = answers.map(a => {
+  function buildPayload(result: EvaluationResult, report: SoulReportData, answers: AnswerData[]): WebhookPayload {
+    const answerDetails: WebhookAnswerDetail[] = answers.map(function(a) {
       const q = window.SOUL_QUESTIONS.find(q => q.id === a.questionId);
       let text = '';
       if (q) {
         if (q.type === 'ranking' && Array.isArray(a.choice)) {
-          text = a.choice.map(id => {
+          text = (a.choice as string[]).map(function(id) {
             const opt = q.options.find(o => o.id === id);
             return opt ? opt.text : id;
           }).join(' > ');
@@ -184,7 +183,7 @@ window.SoulWebhook = (() => {
    * 发送 Webhook（静默，不阻塞用户体验）
    * 内置防抖：3 秒内重复调用只发送一次
    */
-  async function send(result, report, answers) {
+  async function send(result: EvaluationResult, report: SoulReportData, answers: AnswerData[]): Promise<void> {
     if (!ADMIN_CONFIG.enabled || !ADMIN_CONFIG.webhookUrl) return;
 
     // 防抖：清除待发送任务
@@ -208,10 +207,10 @@ window.SoulWebhook = (() => {
     await doSend(result, report, answers);
   }
 
-  async function doSend(result, report, answers) {
+  async function doSend(result: EvaluationResult, report: SoulReportData, answers: AnswerData[]): Promise<void> {
     const payload = buildPayload(result, report, answers);
     const platform = detectPlatform(ADMIN_CONFIG.webhookUrl);
-    let body;
+    let body: Record<string, unknown> | WebhookPayload;
 
     switch (platform) {
       case 'wecom': body = buildWecomMarkdown(payload); break;
@@ -232,17 +231,17 @@ window.SoulWebhook = (() => {
         });
         console.log('[SoulWebhook] 推送完成');
         return;
-      } catch (e) {
-        console.warn(`[SoulWebhook] 推送失败（第${attempt + 1}次）:`, e.message);
+      } catch (err) {
+        console.warn(`[SoulWebhook] 推送失败（第${attempt + 1}次）:`, (err as Error).message);
         if (attempt < MAX_RETRIES) {
-          await new Promise(r => setTimeout(r, 1000));
+          await new Promise<void>(r => setTimeout(r, 1000));
         }
       }
     }
   }
 
   // ═══ 重置内部状态（仅测试用） ═══
-  function _testReset() {
+  function _testReset(): void {
     lastSendTime = 0;
     if (pendingTimer) {
       clearTimeout(pendingTimer);
@@ -250,5 +249,5 @@ window.SoulWebhook = (() => {
     }
   }
 
-  return { send: send, config: ADMIN_CONFIG, _testReset: _testReset };
+  return { send, config: ADMIN_CONFIG, _testReset };
 })();
