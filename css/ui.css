@@ -106,8 +106,8 @@
 /* ═══ 主题选择器 ═══ */
 .theme-picker {
   position: fixed;
-  bottom: 20px;
-  right: 20px;
+  top: 16px;
+  right: 16px;
   z-index: 9990;
   display: flex;
   gap: 8px;
@@ -146,8 +146,8 @@
 
 @media (max-width: 480px) {
   .theme-picker {
-    bottom: 12px;
-    right: 12px;
+    top: 10px;
+    right: 10px;
     padding: 6px 10px;
     gap: 6px;
   }
