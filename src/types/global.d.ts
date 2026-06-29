@@ -163,6 +163,7 @@ interface UIState {
   result: EvaluationResult | null;
   report: SoulReportData | null;
   phase: 'welcome' | 'quiz' | 'loading' | 'report';
+  bankId: string;
 }
 
 interface LoadingParticle {
@@ -302,6 +303,7 @@ interface SoulUtilsAPI {
   el(tag: string, attrs: Record<string, string | number | boolean | Record<string, string>> | null, ...children: Array<Node | string | number | null | undefined>): HTMLElement;
   empty(el: HTMLElement): void;
   html(strings: TemplateStringsArray, ...values: unknown[]): string;
+  readCSSVar(name: string): string;
 }
 
 interface SoulReportAPI {
@@ -332,10 +334,21 @@ interface SoulUIAPI {
   showConfirm(title: string, text: string): Promise<boolean>;
 }
 
+// ═══ 题库类型 ═══
+
+interface QuestionBank {
+  id: string;
+  name: string;
+  desc: string;
+  count: number;
+  questions: QuestionData[];
+}
+
 // 全局 window 扩展
 interface Window {
   SOUL_QUESTIONS: QuestionData[];
   SOUL_DIMENSIONS: Record<DimensionKey, DimensionMeta>;
+  SOUL_BANKS: Record<string, QuestionBank>;
   SoulScoring: SoulScoringEngine;
   SoulUtils: SoulUtilsAPI;
   SoulReport: SoulReportAPI;

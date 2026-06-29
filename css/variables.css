@@ -1,17 +1,173 @@
-/* ═══ CSS 变量 — 深空灵魂主题 ═══ */
+/* ═══ CSS 变量 — 深空灵魂主题（默认） ═══ */
 :root {
+  /* 背景层级 */
   --bg-deep: #0a0a2e;
   --bg-mid: #1a1a4e;
   --bg-light: #2d1b69;
+
+  /* 背景叠加 */
+  --bg-overlay: rgba(10, 10, 46, 0.9);
+  --bg-overlay-heavy: rgba(10, 10, 46, 0.95);
+
+  /* 强调色 */
   --gold: #f0c27f;
   --purple: #a18cd1;
   --purple-light: #d4b8ff;
+
+  /* 强调色变体 */
+  --gold-soft: rgba(240, 194, 127, 0.06);
+  --gold-faint: rgba(240, 194, 127, 0.15);
+  --accent-soft: rgba(161, 140, 209, 0.15);
+  --accent-mid: rgba(161, 140, 209, 0.2);
+  --accent-glow: rgba(161, 140, 209, 0.3);
+
+  /* 文字 */
   --text: #f0f0f0;
+  --text-bright: #ffffff;
   --text-dim: rgba(240, 240, 240, 0.6);
+  --text-faint: rgba(240, 240, 240, 0.35);
+  --text-micro: rgba(240, 240, 240, 0.3);
+
+  /* 玻璃态 */
   --glass: rgba(255, 255, 255, 0.06);
   --glass-border: rgba(255, 255, 255, 0.1);
   --glass-hover: rgba(255, 255, 255, 0.12);
+  --glass-subtle: rgba(255, 255, 255, 0.03);
+  --glass-circle: rgba(255, 255, 255, 0.08);
+
+  /* 功能色 */
+  --error-bg: rgba(220, 50, 50, 0.95);
+
+  /* 按钮 */
+  --btn-save-start: #f0c27f;
+  --btn-save-end: #e6a756;
+
+  /* 弹窗 */
+  --modal-bg-start: #1a1a4e;
+  --modal-bg-end: #2d1b69;
+
+  /* Canvas */
+  --canvas-grid: rgba(255, 255, 255, 0.08);
+  --canvas-axis: rgba(255, 255, 255, 0.1);
+  --canvas-label: #cccccc;
+  --canvas-score: #f0c27f;
+  --canvas-dot-stroke: #ffffff;
+  --star-color: 255, 255, 255;
+
+  /* 布局（主题不变） */
   --radius: 16px;
   --radius-sm: 10px;
   --max-width: 600px;
+}
+
+/* ═══ 海洋蓝主题 ═══ */
+[data-theme="ocean"] {
+  --bg-deep: #0a1628;
+  --bg-mid: #0e3456;
+  --bg-light: #1a5276;
+  --bg-overlay: rgba(10, 22, 40, 0.9);
+  --bg-overlay-heavy: rgba(10, 22, 40, 0.95);
+  --gold: #7ec8e3;
+  --purple: #4a90d9;
+  --purple-light: #89c4f4;
+  --gold-soft: rgba(126, 200, 227, 0.06);
+  --gold-faint: rgba(126, 200, 227, 0.15);
+  --accent-soft: rgba(74, 144, 217, 0.15);
+  --accent-mid: rgba(74, 144, 217, 0.2);
+  --accent-glow: rgba(74, 144, 217, 0.3);
+  --text: #e8f0f8;
+  --text-bright: #ffffff;
+  --text-dim: rgba(232, 240, 248, 0.6);
+  --text-faint: rgba(232, 240, 248, 0.35);
+  --text-micro: rgba(232, 240, 248, 0.3);
+  --glass: rgba(255, 255, 255, 0.06);
+  --glass-border: rgba(255, 255, 255, 0.1);
+  --glass-hover: rgba(255, 255, 255, 0.12);
+  --glass-subtle: rgba(255, 255, 255, 0.03);
+  --glass-circle: rgba(255, 255, 255, 0.08);
+  --btn-save-start: #7ec8e3;
+  --btn-save-end: #5ba3c9;
+  --modal-bg-start: #0e3456;
+  --modal-bg-end: #1a5276;
+  --canvas-grid: rgba(255, 255, 255, 0.08);
+  --canvas-axis: rgba(255, 255, 255, 0.1);
+  --canvas-label: #cccccc;
+  --canvas-score: #7ec8e3;
+  --canvas-dot-stroke: #ffffff;
+  --star-color: 255, 255, 255;
+}
+
+/* ═══ 森林绿主题 ═══ */
+[data-theme="forest"] {
+  --bg-deep: #0a1a0a;
+  --bg-mid: #1a3a1a;
+  --bg-light: #2d5a2d;
+  --bg-overlay: rgba(10, 26, 10, 0.9);
+  --bg-overlay-heavy: rgba(10, 26, 10, 0.95);
+  --gold: #a8d08d;
+  --purple: #6db36d;
+  --purple-light: #b8e0a0;
+  --gold-soft: rgba(168, 208, 141, 0.06);
+  --gold-faint: rgba(168, 208, 141, 0.15);
+  --accent-soft: rgba(109, 179, 109, 0.15);
+  --accent-mid: rgba(109, 179, 109, 0.2);
+  --accent-glow: rgba(109, 179, 109, 0.3);
+  --text: #e8f0e8;
+  --text-bright: #ffffff;
+  --text-dim: rgba(232, 240, 232, 0.6);
+  --text-faint: rgba(232, 240, 232, 0.35);
+  --text-micro: rgba(232, 240, 232, 0.3);
+  --glass: rgba(255, 255, 255, 0.06);
+  --glass-border: rgba(255, 255, 255, 0.1);
+  --glass-hover: rgba(255, 255, 255, 0.12);
+  --glass-subtle: rgba(255, 255, 255, 0.03);
+  --glass-circle: rgba(255, 255, 255, 0.08);
+  --btn-save-start: #a8d08d;
+  --btn-save-end: #8ab86f;
+  --modal-bg-start: #1a3a1a;
+  --modal-bg-end: #2d5a2d;
+  --canvas-grid: rgba(255, 255, 255, 0.08);
+  --canvas-axis: rgba(255, 255, 255, 0.1);
+  --canvas-label: #cccccc;
+  --canvas-score: #a8d08d;
+  --canvas-dot-stroke: #ffffff;
+  --star-color: 255, 255, 255;
+}
+
+/* ═══ 浅色模式 ═══ */
+[data-theme="light"] {
+  --bg-deep: #f0f0f5;
+  --bg-mid: #e0e0ea;
+  --bg-light: #d0d0dd;
+  --bg-overlay: rgba(240, 240, 245, 0.9);
+  --bg-overlay-heavy: rgba(240, 240, 245, 0.95);
+  --gold: #c9963a;
+  --purple: #7c5cbf;
+  --purple-light: #9b7dd4;
+  --gold-soft: rgba(201, 150, 58, 0.08);
+  --gold-faint: rgba(201, 150, 58, 0.18);
+  --accent-soft: rgba(124, 92, 191, 0.1);
+  --accent-mid: rgba(124, 92, 191, 0.15);
+  --accent-glow: rgba(124, 92, 191, 0.25);
+  --text: #1a1a2e;
+  --text-bright: #000000;
+  --text-dim: rgba(26, 26, 46, 0.6);
+  --text-faint: rgba(26, 26, 46, 0.35);
+  --text-micro: rgba(26, 26, 46, 0.3);
+  --glass: rgba(0, 0, 0, 0.04);
+  --glass-border: rgba(0, 0, 0, 0.1);
+  --glass-hover: rgba(0, 0, 0, 0.08);
+  --glass-subtle: rgba(0, 0, 0, 0.02);
+  --glass-circle: rgba(0, 0, 0, 0.06);
+  --error-bg: rgba(220, 50, 50, 0.9);
+  --btn-save-start: #c9963a;
+  --btn-save-end: #b8852e;
+  --modal-bg-start: #e0e0ea;
+  --modal-bg-end: #d0d0dd;
+  --canvas-grid: rgba(0, 0, 0, 0.08);
+  --canvas-axis: rgba(0, 0, 0, 0.12);
+  --canvas-label: #555555;
+  --canvas-score: #c9963a;
+  --canvas-dot-stroke: #1a1a2e;
+  --star-color: 0, 0, 0;
 }

@@ -1,7 +1,10 @@
 /**
- * 灵魂解码 — 完整题库
- * 28 道灵魂之问，涵盖五大人格维度
+ * 灵魂解码 — 题库注册表
+ * 基础版 28 题保持完全不变，进阶/完整版独立扩展
  */
+
+import { BANK_ADVANCED } from './questions-advanced';
+import './validate-bank';
 
 window.SOUL_DIMENSIONS = {
   openness:          { name: '开放性', icon: '✨', soulName: '灵魂的光芒 — 探索之火' },
@@ -11,7 +14,8 @@ window.SOUL_DIMENSIONS = {
   neuroticism:       { name: '神经质', icon: '🌙', soulName: '灵魂的暗面 — 感知之渊' }
 };
 
-window.SOUL_QUESTIONS = [
+// ═══ 基础版（28 题）═══
+const BANK_BASIC: QuestionData[] = [
 
   /* ========================================================
      第一章 · 认知之门（openness）  Q1 – Q6
@@ -440,3 +444,24 @@ window.SOUL_QUESTIONS = [
   }
 
 ];
+
+// ═══ 题库注册表 ═══
+window.SOUL_BANKS = {
+  basic: {
+    id: 'basic',
+    name: '28题基础版',
+    desc: '快速了解你的灵魂密码',
+    count: 28,
+    questions: BANK_BASIC
+  },
+  advanced: {
+    id: 'advanced',
+    name: '50题进阶版',
+    desc: '更深入的灵魂探索之旅',
+    count: 50,
+    questions: BANK_ADVANCED
+  }
+};
+
+// 默认使用基础版
+window.SOUL_QUESTIONS = BANK_BASIC;

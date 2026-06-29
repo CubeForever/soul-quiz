@@ -36,7 +36,7 @@ window.SoulShare = {
       }
 
       const canvas = await window.html2canvas!(el, {
-        backgroundColor: '#0a0a2e',
+        backgroundColor: window.SoulUtils.readCSSVar('--bg-deep') || '#0a0a2e',
         scale: 2,
         useCORS: true,
         logging: false,

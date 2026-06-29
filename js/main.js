@@ -10,6 +10,7 @@ import './utils';
 import './report';
 import './webhook';
 import './share';
+import './theme';
 
 // ui.js 在 DOMContentLoaded 时自动初始化，最后加载
 import './ui';

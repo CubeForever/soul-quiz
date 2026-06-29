@@ -27,7 +27,8 @@ window.SoulUI = (() => {
     answers: [],
     result: null,
     report: null,
-    phase: 'welcome'
+    phase: 'welcome',
+    bankId: 'basic'
   };
 
   const STORAGE_KEY = 'soul_quiz_state';
@@ -62,6 +63,7 @@ window.SoulUI = (() => {
   function init(): void {
     cacheElements();
     bindEvents();
+    renderBankSelector();
     drawStarfield();
 
     // 检查是否从分享链接进入
@@ -76,6 +78,38 @@ window.SoulUI = (() => {
   }
 
   /**
+   * 渲染题库选择器
+   */
+  function renderBankSelector(): void {
+    const container = document.getElementById('bank-selector');
+    if (!container) return;
+
+    const banks = window.SOUL_BANKS;
+    container.innerHTML = '';
+
+    Object.values(banks).forEach(bank => {
+      const option = document.createElement('div');
+      option.className = 'bank-option' + (bank.id === state.bankId ? ' active' : '');
+      option.dataset.bank = bank.id;
+      option.setAttribute('role', 'radio');
+      option.setAttribute('aria-checked', bank.id === state.bankId ? 'true' : 'false');
+      option.innerHTML = `<div class="bank-dot"></div><div class="bank-info"><span class="bank-name">${bank.name}</span><span class="bank-desc">${bank.desc}</span></div>`;
+      option.addEventListener('click', () => selectBank(bank.id));
+      container.appendChild(option);
+    });
+  }
+
+  function selectBank(bankId: string): void {
+    state.bankId = bankId;
+    // 更新选中态
+    document.querySelectorAll('.bank-option').forEach(opt => {
+      const isActive = (opt as HTMLElement).dataset.bank === bankId;
+      opt.classList.toggle('active', isActive);
+      opt.setAttribute('aria-checked', isActive ? 'true' : 'false');
+    });
+  }
+
+  /**
    * 保存答题进度到 localStorage
    */
   function saveProgress(): void {
@@ -83,7 +117,8 @@ window.SoulUI = (() => {
       localStorage.setItem(STORAGE_KEY, JSON.stringify({
         currentQuestion: state.currentQuestion,
         answers: state.answers,
-        phase: state.phase === 'quiz' ? 'quiz' : null
+        phase: state.phase === 'quiz' ? 'quiz' : null,
+        bankId: state.bankId
       }));
     } catch (_e) { /* quota exceeded, ignore */ }
   }
@@ -95,8 +130,13 @@ window.SoulUI = (() => {
     try {
       const saved = localStorage.getItem(STORAGE_KEY);
       if (!saved) return;
-      const data = JSON.parse(saved) as { phase: string; answers: UIAnswer[]; currentQuestion: number };
+      const data = JSON.parse(saved) as { phase: string; answers: UIAnswer[]; currentQuestion: number; bankId?: string };
       if (data.phase === 'quiz' && data.answers && data.answers.length > 0) {
+        // 恢复题库选择
+        if (data.bankId && window.SOUL_BANKS[data.bankId]) {
+          state.bankId = data.bankId;
+          window.SOUL_QUESTIONS = window.SOUL_BANKS[data.bankId].questions;
+        }
         state.currentQuestion = data.currentQuestion || 0;
         state.answers = data.answers;
         showScreen('quiz');
@@ -154,6 +194,11 @@ window.SoulUI = (() => {
   // ═══ 欢迎页 ═══
 
   function startQuiz(): void {
+    // 切换到选中的题库
+    const bank = window.SOUL_BANKS[state.bankId];
+    if (bank) {
+      window.SOUL_QUESTIONS = bank.questions;
+    }
     state.currentQuestion = 0;
     state.answers = [];
     showScreen('quiz');
@@ -560,6 +605,10 @@ window.SoulUI = (() => {
     const cy = h / 2;
     const particles: LoadingParticle[] = [];
 
+    // 从 CSS 变量读取主题色（缓存一次，避免逐帧读取）
+    const themeGold = window.SoulUtils.readCSSVar('--gold') || '#f0c27f';
+    const themePurple = window.SoulUtils.readCSSVar('--purple') || '#a18cd1';
+
     for (let i = 0; i < CONST.LOADING_PARTICLES; i++) {
       const angle = Math.random() * Math.PI * 2;
       const dist = 50 + Math.random() * 150;
@@ -569,7 +618,7 @@ window.SoulUI = (() => {
         speed: 0.005 + Math.random() * 0.01,
         radius: 1 + Math.random() * 2,
         shrink: 0.997,
-        color: `hsla(${250 + Math.random() * 60}, 70%, 70%, ${0.3 + Math.random() * 0.5})`
+        color: `${themePurple}${Math.round((0.3 + Math.random() * 0.5) * 255).toString(16).padStart(2, '0')}`
       });
     }
 
@@ -597,9 +646,9 @@ window.SoulUI = (() => {
       // 中心光点
       const glowSize = 8 + Math.sin(frame * 0.05) * 3;
       const gradient = ctx!.createRadialGradient(cx, cy, 0, cx, cy, glowSize * 3);
-      gradient.addColorStop(0, 'rgba(240, 194, 127, 0.8)');
-      gradient.addColorStop(0.5, 'rgba(161, 140, 209, 0.3)');
-      gradient.addColorStop(1, 'rgba(161, 140, 209, 0)');
+      gradient.addColorStop(0, themeGold + 'cc');
+      gradient.addColorStop(0.5, themePurple + '4d');
+      gradient.addColorStop(1, themePurple + '00');
       ctx!.beginPath();
       ctx!.arc(cx, cy, glowSize * 3, 0, Math.PI * 2);
       ctx!.fillStyle = gradient;
@@ -825,6 +874,13 @@ window.SoulUI = (() => {
     const angleStep = (Math.PI * 2) / n;
     const startAngle = -Math.PI / 2;
 
+    // 从 CSS 变量读取主题色（缓存一次）
+    const canvasGrid = window.SoulUtils.readCSSVar('--canvas-grid') || 'rgba(255, 255, 255, 0.08)';
+    const canvasAxis = window.SoulUtils.readCSSVar('--canvas-axis') || 'rgba(255, 255, 255, 0.1)';
+    const canvasLabel = window.SoulUtils.readCSSVar('--canvas-label') || '#cccccc';
+    const canvasScore = window.SoulUtils.readCSSVar('--canvas-score') || '#f0c27f';
+    const canvasDotStroke = window.SoulUtils.readCSSVar('--canvas-dot-stroke') || '#ffffff';
+
     const params: RadarParams = { ctx, cx, cy, radius, dims, labels, icons, n, angleStep, startAngle, scores, color };
 
     // 绘制静态元素（网格 + 轴线 + 标签）
@@ -842,7 +898,7 @@ window.SoulUI = (() => {
           if (i === 0) ctx.moveTo(x, y); else ctx.lineTo(x, y);
         }
         ctx.closePath();
-        ctx.strokeStyle = 'rgba(255, 255, 255, 0.08)';
+        ctx.strokeStyle = canvasGrid;
         ctx.lineWidth = 1;
         ctx.stroke();
       }
@@ -853,7 +909,7 @@ window.SoulUI = (() => {
         ctx.beginPath();
         ctx.moveTo(cx, cy);
         ctx.lineTo(cx + Math.cos(angle) * radius, cy + Math.sin(angle) * radius);
-        ctx.strokeStyle = 'rgba(255, 255, 255, 0.1)';
+        ctx.strokeStyle = canvasAxis;
         ctx.lineWidth = 1;
         ctx.stroke();
       }
@@ -863,10 +919,10 @@ window.SoulUI = (() => {
       ctx.textBaseline = 'middle';
       for (let i = 0; i < n; i++) {
         const angle = startAngle + angleStep * i;
-        ctx.fillStyle = '#ccc';
+        ctx.fillStyle = canvasLabel;
         ctx.font = '14px sans-serif';
         ctx.fillText(icons[i] + ' ' + labels[i], cx + Math.cos(angle) * (radius + 28), cy + Math.sin(angle) * (radius + 28));
-        ctx.fillStyle = '#f0c27f';
+        ctx.fillStyle = canvasScore;
         ctx.font = 'bold 13px sans-serif';
         ctx.fillText(String(scores[dims[i]]), cx + Math.cos(angle) * (radius + 46), cy + Math.sin(angle) * (radius + 46));
       }
@@ -911,7 +967,7 @@ window.SoulUI = (() => {
         ctx!.arc(p.x, p.y, 4, 0, Math.PI * 2);
         ctx!.fillStyle = color.from;
         ctx!.fill();
-        ctx!.strokeStyle = '#fff';
+        ctx!.strokeStyle = canvasDotStroke;
         ctx!.lineWidth = 1.5;
         ctx!.stroke();
       });
@@ -957,6 +1013,9 @@ window.SoulUI = (() => {
     const stars: StarFieldStar[] = [];
     const starCount = window.innerWidth < 768 ? CONST.STARFIELD_MOBILE_MAX : CONST.STARFIELD_DESKTOP_MAX;
 
+    // 从 CSS 变量读取星星颜色（缓存一次）
+    const starRGB = window.SoulUtils.readCSSVar('--star-color') || '255, 255, 255';
+
     for (let i = 0; i < starCount; i++) {
       stars.push({
         x: Math.random() * w,
@@ -976,7 +1035,7 @@ window.SoulUI = (() => {
         const alpha = star.alpha * (0.6 + 0.4 * Math.sin(time * star.speed + star.phase));
         ctx!.beginPath();
         ctx!.arc(star.x, star.y, star.radius, 0, Math.PI * 2);
-        ctx!.fillStyle = `rgba(255, 255, 255, ${alpha})`;
+        ctx!.fillStyle = `rgba(${starRGB}, ${alpha})`;
         ctx!.fill();
       });
 

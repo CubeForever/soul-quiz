@@ -62,5 +62,12 @@ function html(strings: TemplateStringsArray, ...values: unknown[]): string {
   return result;
 }
 
+/**
+ * 读取 CSS 变量值（用于 Canvas 绘图等非 CSS 场景）
+ */
+function readCSSVar(name: string): string {
+  return getComputedStyle(document.documentElement).getPropertyValue(name).trim();
+}
+
 // 导出到全局供各模块使用
-window.SoulUtils = { esc, el, empty, html };
+window.SoulUtils = { esc, el, empty, html, readCSSVar };

@@ -6,8 +6,8 @@
   transform: translateX(-50%);
   z-index: 99999;
   padding: 14px 24px;
-  background: rgba(220, 50, 50, 0.95);
-  color: #fff;
+  background: var(--error-bg);
+  color: var(--text-bright);
   border-radius: var(--radius-sm);
   font-size: 0.9rem;
   max-width: 90%;
@@ -15,7 +15,7 @@
   box-shadow: 0 4px 20px rgba(0,0,0,0.4);
   animation: fadeIn 0.3s;
   backdrop-filter: blur(10px);
-  border: 1px solid rgba(255,255,255,0.15);
+  border: 1px solid var(--glass-border);
 }
 
 /* ═══ 确认弹窗 ═══ */
@@ -31,7 +31,7 @@
 }
 
 .modal-box {
-  background: linear-gradient(135deg, #1a1a4e, #2d1b69);
+  background: linear-gradient(135deg, var(--modal-bg-start), var(--modal-bg-end));
   border: 1px solid var(--glass-border);
   border-radius: var(--radius);
   padding: 32px 28px 24px;
@@ -43,7 +43,7 @@
 
 .modal-title {
   font-size: 1.2rem;
-  color: #fff;
+  color: var(--text-bright);
   margin-bottom: 12px;
 }
 
@@ -80,12 +80,12 @@
 
 .modal-btn-confirm {
   background: linear-gradient(135deg, var(--purple), var(--bg-light));
-  color: #fff;
+  color: var(--text-bright);
   border: none;
 }
 
 .modal-btn-confirm:hover {
-  box-shadow: 0 4px 20px rgba(161, 140, 209, 0.3);
+  box-shadow: 0 4px 20px var(--accent-glow);
 }
 
 /* ═══ 分享提示 ═══ */
@@ -96,10 +96,63 @@
   transform: translate(-50%, -50%);
   padding: 16px 28px;
   background: rgba(0, 0, 0, 0.85);
-  color: #fff;
+  color: var(--text-bright);
   border-radius: var(--radius-sm);
   font-size: 0.95rem;
   z-index: 9999;
   animation: fadeIn 0.3s;
 }
 
+/* ═══ 主题选择器 ═══ */
+.theme-picker {
+  position: fixed;
+  bottom: 20px;
+  right: 20px;
+  z-index: 9990;
+  display: flex;
+  gap: 8px;
+  padding: 8px 12px;
+  background: var(--glass);
+  border: 1px solid var(--glass-border);
+  border-radius: 30px;
+  backdrop-filter: blur(10px);
+  -webkit-backdrop-filter: blur(10px);
+}
+
+.theme-dot {
+  width: 24px;
+  height: 24px;
+  border-radius: 50%;
+  border: 2px solid transparent;
+  cursor: pointer;
+  transition: all 0.2s;
+  padding: 0;
+  outline: none;
+}
+
+.theme-dot:hover {
+  transform: scale(1.2);
+}
+
+.theme-dot.active {
+  border-color: var(--text-bright);
+  box-shadow: 0 0 10px var(--accent-glow);
+}
+
+.theme-dot:focus-visible {
+  outline: 2px solid var(--gold);
+  outline-offset: 2px;
+}
+
+@media (max-width: 480px) {
+  .theme-picker {
+    bottom: 12px;
+    right: 12px;
+    padding: 6px 10px;
+    gap: 6px;
+  }
+  .theme-dot {
+    width: 20px;
+    height: 20px;
+  }
+}
