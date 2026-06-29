@@ -25,8 +25,8 @@
   --text: #f0f0f0;
   --text-bright: #ffffff;
   --text-dim: rgba(240, 240, 240, 0.6);
-  --text-faint: rgba(240, 240, 240, 0.35);
-  --text-micro: rgba(240, 240, 240, 0.3);
+  --text-faint: rgba(240, 240, 240, 0.45);  /* WCAG AA: ≥4.5:1 on #0a0a2e */
+  --text-micro: rgba(240, 240, 240, 0.4);   /* WCAG AA */
 
   /* 玻璃态 */
   --glass: rgba(255, 255, 255, 0.06);
@@ -78,8 +78,8 @@
   --text: #e8f0f8;
   --text-bright: #ffffff;
   --text-dim: rgba(232, 240, 248, 0.6);
-  --text-faint: rgba(232, 240, 248, 0.35);
-  --text-micro: rgba(232, 240, 248, 0.3);
+  --text-faint: rgba(232, 240, 248, 0.45);
+  --text-micro: rgba(232, 240, 248, 0.4);
   --glass: rgba(255, 255, 255, 0.06);
   --glass-border: rgba(255, 255, 255, 0.1);
   --glass-hover: rgba(255, 255, 255, 0.12);
@@ -115,8 +115,8 @@
   --text: #e8f0e8;
   --text-bright: #ffffff;
   --text-dim: rgba(232, 240, 232, 0.6);
-  --text-faint: rgba(232, 240, 232, 0.35);
-  --text-micro: rgba(232, 240, 232, 0.3);
+  --text-faint: rgba(232, 240, 232, 0.45);
+  --text-micro: rgba(232, 240, 232, 0.4);
   --glass: rgba(255, 255, 255, 0.06);
   --glass-border: rgba(255, 255, 255, 0.1);
   --glass-hover: rgba(255, 255, 255, 0.12);
@@ -152,8 +152,8 @@
   --text: #1a1a2e;
   --text-bright: #000000;
   --text-dim: rgba(26, 26, 46, 0.6);
-  --text-faint: rgba(26, 26, 46, 0.35);
-  --text-micro: rgba(26, 26, 46, 0.3);
+  --text-faint: rgba(26, 26, 46, 0.45);
+  --text-micro: rgba(26, 26, 46, 0.4);
   --glass: rgba(0, 0, 0, 0.04);
   --glass-border: rgba(0, 0, 0, 0.1);
   --glass-hover: rgba(0, 0, 0, 0.08);

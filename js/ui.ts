@@ -19,7 +19,7 @@ window.addEventListener('unhandledrejection', function(e) {
   return true;
 });
 
-window.SoulUI = (() => {
+export const SoulUI = (() => {
 
   // ═══ 状态 ═══
   const state: UIState = {
@@ -207,144 +207,151 @@ window.SoulUI = (() => {
 
   // ═══ 答题页 ═══
 
-  function renderQuestion(): void {
-    const q = window.SOUL_QUESTIONS[state.currentQuestion];
-    if (!q) return;
+  // ═══ 题目渲染（拆分子函数） ═══
 
-    // 更新进度
+  function updateProgress(): void {
     const total = window.SOUL_QUESTIONS.length;
     const pct = Math.round((state.currentQuestion / total) * 100);
     els.progressBar!.style.width = pct + '%';
     els.progressText!.textContent = `${state.currentQuestion + 1} / ${total}`;
-    // 更新无障碍进度值
     const track = els.progressBar!.parentElement;
     if (track) track.setAttribute('aria-valuenow', String(pct));
+  }
 
-    // 返回按钮可见性
+  function renderScenarioOptions(q: QuestionData, optionsEl: HTMLElement): void {
+    optionsEl.className = 'options-grid';
+    q.options.forEach(opt => {
+      const btn = document.createElement('button');
+      btn.className = 'option-card';
+      btn.dataset.id = String(opt.id);
+      btn.appendChild(window.SoulUtils.el('span', {className:'option-id'}, String(opt.id)));
+      btn.appendChild(window.SoulUtils.el('span', {className:'option-text'}, opt.text));
+      btn.addEventListener('click', () => selectOption(q.id, opt.id));
+      optionsEl.appendChild(btn);
+    });
+  }
+
+  function renderLikertOptions(q: QuestionData, optionsEl: HTMLElement): void {
+    optionsEl.className = 'options-likert';
+    q.options.forEach(opt => {
+      const btn = document.createElement('button');
+      btn.className = 'option-likert';
+      btn.dataset.id = String(opt.id);
+      btn.appendChild(window.SoulUtils.el('span', {className:'likert-num'}, String(opt.id)));
+      btn.appendChild(window.SoulUtils.el('span', {className:'likert-text'}, opt.text));
+      btn.addEventListener('click', () => selectOption(q.id, opt.id));
+      optionsEl.appendChild(btn);
+    });
+  }
+
+  function renderRankingOptions(q: QuestionData, area: HTMLElement, optionsEl: HTMLElement): void {
+    optionsEl.className = 'options-ranking';
+    window.SoulUtils.empty(area);
+    optionsEl.appendChild(window.SoulUtils.el('p', {className:'ranking-hint'}, '拖拽排列，最上面 = 最重要'));
+
+    const list = document.createElement('div');
+    list.className = 'ranking-list';
+    list.id = 'ranking-list';
+    list.setAttribute('role', 'listbox');
+    list.setAttribute('aria-label', '拖拽排序，使用上下方向键调整顺序');
+
+    q.options.forEach((opt, idx) => {
+      const item = document.createElement('div');
+      item.className = 'ranking-item';
+      item.draggable = true;
+      item.dataset.id = String(opt.id);
+      item.setAttribute('role', 'option');
+      item.setAttribute('aria-posinset', String(idx + 1));
+      item.setAttribute('aria-setsize', String(q.options.length));
+      item.tabIndex = 0;
+
+      item.appendChild(window.SoulUtils.el('span', {className:'rank-handle', 'aria-hidden':'true'}, '☰'));
+      item.appendChild(window.SoulUtils.el('span', {className:'rank-text'}, opt.text));
+
+      const btnUp = window.SoulUtils.el('button', {
+        className:'rank-btn-up', 'aria-label':'上移此项',
+        type:'button', style:{background:'none', border:'none', color:'rgba(240,240,240,0.5)', cursor:'pointer', fontSize:'0.9rem', padding:'2px 6px'}
+      }, '▲');
+      const btnDown = window.SoulUtils.el('button', {
+        className:'rank-btn-down', 'aria-label':'下移此项',
+        type:'button', style:{background:'none', border:'none', color:'rgba(240,240,240,0.5)', cursor:'pointer', fontSize:'0.9rem', padding:'2px 6px'}
+      }, '▼');
+
+      btnUp.addEventListener('click', function(e) { e.stopPropagation(); moveRankItem(item, -1, list); });
+      btnDown.addEventListener('click', function(e) { e.stopPropagation(); moveRankItem(item, 1, list); });
+
+      item.appendChild(btnUp);
+      item.appendChild(btnDown);
+      list.appendChild(item);
+    });
+
+    optionsEl.appendChild(list);
+
+    const confirmBtn = document.createElement('button');
+    confirmBtn.className = 'btn-confirm-ranking';
+    confirmBtn.textContent = '确认排序';
+    confirmBtn.setAttribute('aria-label', '确认当前排序结果并进入下一题');
+    confirmBtn.addEventListener('click', () => confirmRanking(q.id));
+    optionsEl.appendChild(confirmBtn);
+
+    requestAnimationFrame(() => initDragSort(list));
+  }
+
+  function restoreSelection(q: QuestionData, area: HTMLElement): void {
+    const existing = state.answers.find(a => a.questionId === q.id);
+    if (!existing) return;
+
+    if (q.type === 'ranking' && Array.isArray(existing.choice)) {
+      requestAnimationFrame(() => {
+        const list = document.getElementById('ranking-list');
+        if (!list) return;
+        (existing.choice as string[]).forEach(optId => {
+          const item = list.querySelector(`[data-id="${optId}"]`);
+          if (item) list.appendChild(item);
+        });
+        updateRankNumbers(list);
+      });
+    } else if (q.type !== 'ranking') {
+      const btn = area.querySelector(`[data-id="${existing.choice}"]`);
+      if (btn) btn.classList.add('selected');
+    }
+  }
+
+  function renderQuestion(): void {
+    const q = window.SOUL_QUESTIONS[state.currentQuestion];
+    if (!q) return;
+
+    updateProgress();
     els.btnBack!.style.visibility = state.currentQuestion > 0 ? 'visible' : 'hidden';
 
-    // 渲染题目
     const area = els.questionArea!;
     window.SoulUtils.empty(area);
 
     const card = document.createElement('div');
     card.className = 'question-card fade-in';
 
-    // 维度标签
     const dimLabel = document.createElement('div');
     dimLabel.className = 'dimension-badge';
     dimLabel.textContent = q.dimension;
     card.appendChild(dimLabel);
 
-    // 题目文本
     const title = document.createElement('h2');
     title.className = 'question-text';
     title.textContent = q.text;
     card.appendChild(title);
 
-    // 选项
     const optionsEl = document.createElement('div');
-
     if (q.type === 'scenario') {
-      optionsEl.className = 'options-grid';
-      q.options.forEach(opt => {
-        const btn = document.createElement('button');
-        btn.className = 'option-card';
-        btn.dataset.id = String(opt.id);
-        btn.appendChild(window.SoulUtils.el('span', {className:'option-id'}, String(opt.id)));
-        btn.appendChild(window.SoulUtils.el('span', {className:'option-text'}, opt.text));
-        btn.addEventListener('click', () => selectOption(q.id, opt.id));
-        optionsEl.appendChild(btn);
-      });
+      renderScenarioOptions(q, optionsEl);
     } else if (q.type === 'likert') {
-      optionsEl.className = 'options-likert';
-      q.options.forEach(opt => {
-        const btn = document.createElement('button');
-        btn.className = 'option-likert';
-        btn.dataset.id = String(opt.id);
-        btn.appendChild(window.SoulUtils.el('span', {className:'likert-num'}, String(opt.id)));
-        btn.appendChild(window.SoulUtils.el('span', {className:'likert-text'}, opt.text));
-        btn.addEventListener('click', () => selectOption(q.id, opt.id));
-        optionsEl.appendChild(btn);
-      });
+      renderLikertOptions(q, optionsEl);
     } else if (q.type === 'ranking') {
-      optionsEl.className = 'options-ranking';
-      window.SoulUtils.empty(area);
-      optionsEl.appendChild(window.SoulUtils.el('p', {className:'ranking-hint'}, '拖拽排列，最上面 = 最重要'));
-
-      const list = document.createElement('div');
-      list.className = 'ranking-list';
-      list.id = 'ranking-list';
-      list.setAttribute('role', 'listbox');
-      list.setAttribute('aria-label', '拖拽排序，使用上下方向键调整顺序');
-
-      q.options.forEach((opt, idx) => {
-        const item = document.createElement('div');
-        item.className = 'ranking-item';
-        item.draggable = true;
-        item.dataset.id = String(opt.id);
-        item.setAttribute('role', 'option');
-        item.setAttribute('aria-posinset', String(idx + 1));
-        item.setAttribute('aria-setsize', String(q.options.length));
-        item.tabIndex = 0;
-
-        // 拖拽手柄
-        item.appendChild(window.SoulUtils.el('span', {className:'rank-handle', 'aria-hidden':'true'}, '☰'));
-        item.appendChild(window.SoulUtils.el('span', {className:'rank-text'}, opt.text));
-
-        // 上移/下移按钮（无障碍替代操作）
-        const btnUp = window.SoulUtils.el('button', {
-          className:'rank-btn-up', 'aria-label':'上移此项',
-          type:'button', style:{background:'none', border:'none', color:'rgba(240,240,240,0.5)', cursor:'pointer', fontSize:'0.9rem', padding:'2px 6px'}
-        }, '▲');
-        const btnDown = window.SoulUtils.el('button', {
-          className:'rank-btn-down', 'aria-label':'下移此项',
-          type:'button', style:{background:'none', border:'none', color:'rgba(240,240,240,0.5)', cursor:'pointer', fontSize:'0.9rem', padding:'2px 6px'}
-        }, '▼');
-
-        btnUp.addEventListener('click', function(e) { e.stopPropagation(); moveRankItem(item, -1, list); });
-        btnDown.addEventListener('click', function(e) { e.stopPropagation(); moveRankItem(item, 1, list); });
-
-        item.appendChild(btnUp);
-        item.appendChild(btnDown);
-        list.appendChild(item);
-      });
-
-      optionsEl.appendChild(list);
-
-      const confirmBtn = document.createElement('button');
-      confirmBtn.className = 'btn-confirm-ranking';
-      confirmBtn.textContent = '确认排序';
-      confirmBtn.setAttribute('aria-label', '确认当前排序结果并进入下一题');
-      confirmBtn.addEventListener('click', () => confirmRanking(q.id));
-      optionsEl.appendChild(confirmBtn);
-
-      // 等 DOM 渲染后再绑定拖拽
-      requestAnimationFrame(() => initDragSort(list));
+      renderRankingOptions(q, area, optionsEl);
     }
-
     card.appendChild(optionsEl);
     area.appendChild(card);
 
-    // 恢复之前的选择
-    const existing = state.answers.find(a => a.questionId === q.id);
-    if (existing) {
-      if (q.type === 'ranking' && Array.isArray(existing.choice)) {
-        // 恢复排序顺序
-        requestAnimationFrame(() => {
-          const list = document.getElementById('ranking-list');
-          if (!list) return;
-          (existing.choice as string[]).forEach(optId => {
-            const item = list.querySelector(`[data-id="${optId}"]`);
-            if (item) list.appendChild(item);
-          });
-          updateRankNumbers(list);
-        });
-      } else if (q.type !== 'ranking') {
-        const btn = area.querySelector(`[data-id="${existing.choice}"]`);
-        if (btn) btn.classList.add('selected');
-      }
-    }
+    restoreSelection(q, area);
   }
 
   function selectOption(questionId: number, choice: string | number): void {
@@ -431,19 +438,44 @@ window.SoulUI = (() => {
 
     let dragItem: HTMLElement | null = null;
     let isPointerDown = false;
+    let isDragging = false;
+    let longPressTimer: ReturnType<typeof setTimeout> | null = null;
+    let startY = 0;
+    const LONG_PRESS_MS = 300;
+    const MOVE_CANCEL_PX = 10;
 
     container.addEventListener('pointerdown', (e: PointerEvent) => {
       const item = (e.target as HTMLElement).closest('.ranking-item') as HTMLElement | null;
       if (!item) return;
       dragItem = item;
       isPointerDown = true;
-      item.classList.add('dragging');
-      item.setPointerCapture(e.pointerId);
-      container.style.touchAction = 'none';
+      isDragging = false;
+      startY = e.clientY;
+
+      // 长按检测：移动端需要长按才开始拖拽，避免与滚动冲突
+      longPressTimer = setTimeout(() => {
+        if (dragItem && isPointerDown) {
+          isDragging = true;
+          dragItem.classList.add('dragging');
+          dragItem.setPointerCapture(e.pointerId);
+          container.style.touchAction = 'none';
+        }
+      }, LONG_PRESS_MS);
     }, { signal });
 
     container.addEventListener('pointermove', (e: PointerEvent) => {
       if (!dragItem || !isPointerDown) return;
+
+      // 长按前移动超过阈值，取消拖拽（用户在滚动）
+      if (!isDragging) {
+        if (Math.abs(e.clientY - startY) > MOVE_CANCEL_PX) {
+          if (longPressTimer) { clearTimeout(longPressTimer); longPressTimer = null; }
+          isPointerDown = false;
+          dragItem = null;
+        }
+        return;
+      }
+
       e.preventDefault();
       const afterElement = getDragAfterElement(container, e.clientY);
       if (afterElement) {
@@ -454,23 +486,31 @@ window.SoulUI = (() => {
     }, { signal });
 
     container.addEventListener('pointerup', (e: PointerEvent) => {
+      if (longPressTimer) { clearTimeout(longPressTimer); longPressTimer = null; }
       if (!dragItem) return;
-      dragItem.classList.remove('dragging');
-      dragItem.releasePointerCapture(e.pointerId);
-      updateRankNumbers(container);
+      if (isDragging) {
+        dragItem.classList.remove('dragging');
+        dragItem.releasePointerCapture(e.pointerId);
+        updateRankNumbers(container);
+        container.style.touchAction = '';
+      }
       dragItem = null;
       isPointerDown = false;
-      container.style.touchAction = '';
+      isDragging = false;
     }, { signal });
 
     container.addEventListener('pointercancel', (e: PointerEvent) => {
+      if (longPressTimer) { clearTimeout(longPressTimer); longPressTimer = null; }
       if (!dragItem) return;
-      dragItem.classList.remove('dragging');
-      dragItem.releasePointerCapture(e.pointerId);
-      updateRankNumbers(container);
+      if (isDragging) {
+        dragItem.classList.remove('dragging');
+        dragItem.releasePointerCapture(e.pointerId);
+        updateRankNumbers(container);
+        container.style.touchAction = '';
+      }
       dragItem = null;
       isPointerDown = false;
-      container.style.touchAction = '';
+      isDragging = false;
     }, { signal });
 
     // 键盘操作：上下方向键调整排序
@@ -1173,6 +1213,9 @@ window.SoulUI = (() => {
     }
   };
 })();
+
+// Backward compatibility bridge
+window.SoulUI = SoulUI;
 
 // DOM Ready
 document.addEventListener('DOMContentLoaded', () => {

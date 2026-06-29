@@ -357,3 +357,8 @@ interface Window {
   setupSoulDOM?: () => void;
   html2canvas?: (el: HTMLElement, opts: Record<string, unknown>) => Promise<HTMLCanvasElement>;
 }
+
+// Vite 构建时注入的环境变量（通过 .env 文件或 CI 配置）
+declare const __WEBHOOK_URL__: string | undefined;
+declare const __PROXY_URL__: string | undefined;
+declare const __WEBHOOK_ENABLED__: string | undefined;

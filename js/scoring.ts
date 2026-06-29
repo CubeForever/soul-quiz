@@ -3,13 +3,14 @@
  * OCEAN 五维评分 + 九型人格匹配
  */
 
-window.SoulScoring = {
+export const SoulScoring = {
 
   // ═══ 评分配置常量 ═══
   CONFIG: {
     MAX_PERCENT: 95,
     MIN_PERCENT: 5,
     TAG_THRESHOLDS: [82, 62, 45, 28],
+    // 灵魂标签分档阈值: veryHigh >= 82, high >= 62, midHigh >= 45, midLow >= 28, low < 28
     ENNEAGRAM_HIGH: 70,
     ENNEAGRAM_MID_LOW: 42,
     RANK_MULTIPLIERS: [1, 0.6, 0.3, 0, 0]
@@ -30,7 +31,7 @@ window.SoulScoring = {
       if (question.type === 'ranking') {
         const choice = answer.choice as string[];
         if (!Array.isArray(choice)) return;
-        const multipliers = [1, 0.6, 0.3, 0, 0];
+        const multipliers = SoulScoring.CONFIG.RANK_MULTIPLIERS;
         choice.forEach(function(optId: string, rank: number) {
           const option = question.options.find(function(o: QuestionOption) { return o.id === optId; });
           if (!option) return;
@@ -219,3 +220,6 @@ window.SoulScoring = {
     return { raw: raw, max: max, scores: scores, tags: tags, enneagram: enneagram };
   }
 };
+
+// Backward compatibility bridge
+window.SoulScoring = SoulScoring;

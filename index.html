@@ -6,6 +6,8 @@
 
   <!-- Content-Security-Policy：纵深防御，限制可执行脚本来源 -->
   <!-- 注：部署到生产环境后可改为 HTTP 头方式配置，更安全 -->
+  <!-- CSP 注意: style-src 'unsafe-inline' 和 script-src 'unsafe-inline' 是 Vite 开发模式所必需的
+       （HMR 注入内联样式/模块加载）。生产环境如需移除，需配置 nonce-based CSP 或使用 Vite CSS 提取模式。 -->
   <meta http-equiv="Content-Security-Policy" content="
     default-src 'self';
     script-src 'self' 'unsafe-inline' https://cdn.jsdelivr.net https://cdnjs.cloudflare.com;

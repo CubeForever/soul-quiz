@@ -15,7 +15,7 @@ window.SOUL_DIMENSIONS = {
 };
 
 // ═══ 基础版（28 题）═══
-const BANK_BASIC: QuestionData[] = [
+export const BANK_BASIC: QuestionData[] = [
 
   /* ========================================================
      第一章 · 认知之门（openness）  Q1 – Q6

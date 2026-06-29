@@ -24,7 +24,7 @@ const STORAGE_KEY = 'soul-theme';
 /**
  * 应用主题
  */
-function setTheme(id: ThemeId): void {
+export function setTheme(id: ThemeId): void {
   const theme = THEMES.find(t => t.id === id);
   if (!theme) return;
 
@@ -51,7 +51,7 @@ function setTheme(id: ThemeId): void {
 /**
  * 读取保存的主题，回退到 prefers-color-scheme
  */
-function getInitialTheme(): ThemeId {
+export function getInitialTheme(): ThemeId {
   try {
     const saved = localStorage.getItem(STORAGE_KEY) as ThemeId | null;
     if (saved && THEMES.some(t => t.id === saved)) return saved;
@@ -90,7 +90,7 @@ function renderPicker(): void {
 /**
  * 初始化主题系统
  */
-function initTheme(): void {
+export function initTheme(): void {
   const initial = getInitialTheme();
   setTheme(initial);
   renderPicker();

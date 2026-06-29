@@ -3,7 +3,7 @@
  * 使用 html2canvas 截图生成分享图片
  */
 
-window.SoulShare = {
+export const SoulShare = {
 
   /**
    * 生成分享图片并触发下载
@@ -80,11 +80,12 @@ window.SoulShare = {
 
   /**
    * 生成链接签名
+   * 简单 DJB2 哈希防篡改
+   * ⚠️ 安全限制：纯前端签名可被逆向。真正的安全需要服务端签名。
+   *    当前方案足以阻止普通用户随意修改 URL 参数。
    */
   _signData(data: Record<string, unknown>): string {
     // 简单 HMAC 风格签名：内容 + 固定密钥的 DJB2 哈希
-    // ⚠️ 注意：这是前端防篡改，仅用于防止普通用户随意修改 URL 参数
-    //    前端代码对用户完全可见，无法做到真正的加密安全
     const SECRET_PARTS = [
       'soul_decoder_v1_',
       '7f3a9c2e_',
@@ -188,3 +189,6 @@ window.SoulShare = {
     setTimeout(() => tip.remove(), 2500);
   }
 };
+
+// Backward compatibility bridge
+window.SoulShare = SoulShare;

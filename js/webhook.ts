@@ -3,7 +3,7 @@
  * 支持企业微信 / 飞书 / 钉钉，自动识别平台
  */
 
-window.SoulWebhook = (() => {
+export const SoulWebhook = (() => {
 
   // ═══ 防抖与频率限制 ═══
   let lastSendTime = 0;
@@ -12,21 +12,14 @@ window.SoulWebhook = (() => {
   const MAX_RETRIES = 1;
 
   // ═══ 管理员配置区 ═══
+  // ⚠️ CORS 说明：企业微信/飞书/钉钉 Webhook 不支持浏览器直接跨域调用。
+  // 推荐方案：部署代理（如 Cloudflare Worker），将 proxyUrl 设为代理地址。
+  // 无代理时使用 mode:'no-cors'，请求会发出但无法确认是否到达。
+  // 可通过 .env 文件配置 VITE_WEBHOOK_URL / VITE_PROXY_URL / VITE_WEBHOOK_ENABLED
   const ADMIN_CONFIG: WebhookConfig = {
-    // 你的 Webhook 地址（替换为实际地址）
-    // ⚠️ 安全提醒：前端代码中的 URL 对用户可见。
-    // 生产环境建议通过后端代理转发，而非直接暴露 Webhook URL。
-    webhookUrl: '',
-
-    // 代理地址（解决 CORS，推荐）
-    // Cloudflare Worker 示例：https://your-worker.workers.dev
-    //  Worker 代码见 docs/plan.md 或项目文档
-    proxyUrl: '',
-
-    // 推送开关
-    enabled: false,
-
-    // 推送完整答案详情
+    webhookUrl: (typeof __WEBHOOK_URL__ !== 'undefined' ? __WEBHOOK_URL__ : '') || '',
+    proxyUrl: (typeof __PROXY_URL__ !== 'undefined' ? __PROXY_URL__ : '') || '',
+    enabled: (typeof __WEBHOOK_ENABLED__ !== 'undefined' ? __WEBHOOK_ENABLED__ === 'true' : false),
     includeAnswers: true
   };
   // ═════════════════════
@@ -220,16 +213,20 @@ window.SoulWebhook = (() => {
     }
 
     const targetUrl = ADMIN_CONFIG.proxyUrl || ADMIN_CONFIG.webhookUrl;
+    const isProxy = !!ADMIN_CONFIG.proxyUrl;
 
     for (let attempt = 0; attempt <= MAX_RETRIES; attempt++) {
       try {
-        await fetch(targetUrl, {
+        const resp = await fetch(targetUrl, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify(body),
-          mode: 'no-cors'
+          mode: isProxy ? 'cors' : 'no-cors'
         });
-        console.log('[SoulWebhook] 推送完成');
+        if (isProxy && !resp.ok) {
+          throw new Error(`HTTP ${resp.status}: ${resp.statusText}`);
+        }
+        console.log(`[SoulWebhook] 推送${isProxy ? '成功 (通过代理)' : '已发出 (opaque, 无法确认到达。建议配置 proxyUrl)'}`);
         return;
       } catch (err) {
         console.warn(`[SoulWebhook] 推送失败（第${attempt + 1}次）:`, (err as Error).message);
@@ -251,3 +248,6 @@ window.SoulWebhook = (() => {
 
   return { send, config: ADMIN_CONFIG, _testReset };
 })();
+
+// Backward compatibility bridge
+window.SoulWebhook = SoulWebhook;

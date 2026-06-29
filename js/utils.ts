@@ -6,7 +6,7 @@
 /**
  * HTML 转义，防止 XSS
  */
-function esc(str: unknown): string {
+export function esc(str: unknown): string {
   if (str == null) return '';
   return String(str).replace(/[&<>"']/g, function(c) {
     return '&#' + c.charCodeAt(0) + ';';
@@ -16,7 +16,7 @@ function esc(str: unknown): string {
 /**
  * 安全创建 DOM 元素
  */
-function el(
+export function el(
   tag: string,
   attrs: Record<string, string | number | boolean | Record<string, string>> | null,
   ...children: Array<Node | string | number | null | undefined>
@@ -41,14 +41,14 @@ function el(
 /**
  * 清空容器所有子节点
  */
-function empty(el: HTMLElement): void {
+export function empty(el: HTMLElement): void {
   while (el.firstChild) el.removeChild(el.firstChild);
 }
 
 /**
  * 安全 HTML 标签模板：自动转义所有插值变量，防止 XSS
  */
-function html(strings: TemplateStringsArray, ...values: unknown[]): string {
+export function html(strings: TemplateStringsArray, ...values: unknown[]): string {
   let result = strings[0];
   for (let i = 1; i < strings.length; i++) {
     const val = values[i - 1];
@@ -65,7 +65,7 @@ function html(strings: TemplateStringsArray, ...values: unknown[]): string {
 /**
  * 读取 CSS 变量值（用于 Canvas 绘图等非 CSS 场景）
  */
-function readCSSVar(name: string): string {
+export function readCSSVar(name: string): string {
   return getComputedStyle(document.documentElement).getPropertyValue(name).trim();
 }
 

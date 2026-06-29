@@ -16,7 +16,7 @@ interface ValidationResult {
 /**
  * 校验自定义题库 JSON 数据
  */
-function validateCustomBank(raw: unknown): ValidationResult {
+export function validateCustomBank(raw: unknown): ValidationResult {
   const errors: string[] = [];
 
   // 1. 检查是数组

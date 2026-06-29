@@ -3,7 +3,7 @@
  * OCEAN 五维得分 + 九型人格 → 完整个性化灵魂报告
  */
 
-window.SoulReport = (() => {
+export const SoulReport = (() => {
 
   // ═══ 灵魂类型标题 ═══
   const SOUL_TITLES: SoulTitleRule[] = [
@@ -294,7 +294,8 @@ window.SoulReport = (() => {
     { phenomenon: '潮汐', desc: '在月光的牵引下有节律地进退，温柔却势不可挡' }
   ];
 
-  // ═══ 共享常量（避免 generate() 和 getDimName 重复定义） ═══
+  // ═══ 共享常量 ═══
+  // 独立维护一份维度名称，避免依赖 window.SOUL_DIMENSIONS（保持报告引擎自包含）
   const DIM_NAMES: Record<DimensionKey, string> = { openness: '开放性', conscientiousness: '尽责性', extraversion: '外向性', agreeableness: '宜人性', neuroticism: '神经质' };
   const DIM_ICONS: Record<DimensionKey, string> = { openness: '✨', conscientiousness: '🏛️', extraversion: '🌊', agreeableness: '💚', neuroticism: '🌙' };
 
@@ -529,3 +530,6 @@ window.SoulReport = (() => {
 
   return { generate };
 })();
+
+// Backward compatibility bridge
+window.SoulReport = SoulReport;

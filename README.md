@@ -16,7 +16,7 @@
 - **PWA 离线支持**：Service Worker 预缓存核心资源，二次加载秒开
 - **XSS 安全防护**：HTML 自动转义标签模板，杜绝注入风险
 - **TypeScript strict**：全量类型覆盖，零 `any`、零 `@ts-nocheck`，类型安全 100%
-- **Webhook 推送**：支持企业微信 / 飞书 / 钉钉自动识别（带防抖保护）
+- **Webhook 推送**：支持企业微信 / 飞书 / 钉钉自动识别（带防抖保护 + 构建时环境变量注入）
 - **Canvas 动画**：星空背景 / 加载粒子 / 雷达图，全部随主题变色
 
 ## 🧠 心理学基础
@@ -41,7 +41,7 @@
 | 存储 | localStorage（答题进度持久化） |
 | 分享 | html2canvas (CDN) 截图 + Base64 URL 分享（带签名防篡改） |
 | PWA | Service Worker（版本化增量更新） |
-| 测试 | Jest + JSDOM（**73 个单元测试**，覆盖率 **50%+**） |
+| 测试 | Jest + JSDOM（**103 个单元测试**，覆盖率 **50%+**） |
 | 代码质量 | **TypeScript strict**（全量类型 · 零 any · 零 @ts-nocheck）+ ESLint（零报警）+ EditorConfig |
 
 ## 🌐 浏览器兼容
@@ -100,8 +100,9 @@
 ├── __tests__/
 │   ├── scoring.test.js           # 评分与九型匹配（19 用例）
 │   ├── report_and_share.test.js  # 报告生成与分享（21 用例）
-│   ├── ui.test.js                # UI 交互测试（18 用例，新增）
-│   ├── webhook.test.js           # Webhook 推送测试（15 用例，新增）
+│   ├── report_texts.test.js      # 报告文案完整性（17 用例，新增）
+│   ├── ui.test.js                # UI 交互测试（18 用例）
+│   ├── webhook.test.js           # Webhook 推送测试（15 用例）
 │   └── distribution_test.js      # 九型分布验证（手动运行）
 ├── dist/               # 构建产物（Vite build 生成）
 └── docs/
@@ -136,7 +137,7 @@ npm run preview
 
 ```bash
 npm install
-npm test              # 运行单元测试（73 个用例）
+npm test              # 运行单元测试（103 个用例）
 npm run test:coverage # 运行测试并生成覆盖率报告
 npm run lint          # 代码风格检查
 npm run lint:fix      # 自动修复代码风格问题
@@ -167,12 +168,24 @@ CONFIG: {
 
 ### Webhook（`js/webhook.ts`）
 
+推荐通过环境变量配置（在 `.env` 文件或 CI 中设置）：
+
+```env
+VITE_WEBHOOK_URL=https://your-webhook-url
+VITE_PROXY_URL=https://your-proxy.workers.dev
+VITE_WEBHOOK_ENABLED=true
+```
+
+或直接修改代码中的 `ADMIN_CONFIG`：
+
 ```javascript
-// 修改 ADMIN_CONFIG 配置项
 webhookUrl: '',   // 替换为你的 Webhook 地址
-proxyUrl: '',     // 可选：CORS 代理地址
+proxyUrl: '',     // 推荐：CORS 代理地址（如 Cloudflare Worker）
 enabled: false,   // 开启推送
 ```
+
+> ⚠️ 企业微信/飞书/钉钉 Webhook 不支持浏览器直接跨域调用，推荐配置 `proxyUrl` 代理转发。
+> 无代理时请求仍会发出（`mode:'no-cors'`），但无法确认是否到达。
 
 ## 📊 性能基线
 
@@ -194,7 +207,7 @@ enabled: false,   // 开启推送
 | **XSS** | 安全 HTML 模板 `esc()` + `html()` 自动转义所有插值 | ✅ 全覆盖 |
 | **DOM 操作** | 优先使用 `createElement()` + `textContent` 而非 `innerHTML` | ✅ 导览 |
 | **分享签名** | HMAC 风格签名防止 URL 参数篡改 | ✅ 已实现 |
-| **Webhook 安全** | 前端硬编码 URL 标注安全提醒，默认关闭，建议生产环境用代理 | ⚠️ 需使用者注意 |
+| **Webhook 安全** | 默认关闭，支持构建时环境变量注入 URL，推荐 CORS 代理转发 | ✅ 已改进 |
 | **隐私** | 无 Cookie、无第三方追踪、无用户实名信息收集 | ✅ |
 | **错误边界** | `window.onerror` + `unhandledrejection` + 白屏降级 | ✅ |
 
@@ -203,7 +216,7 @@ enabled: false,   // 开启推送
 - **TypeScript strict 全量通过**：10 个 TS 文件零 `any`、零 `@ts-nocheck`，类型覆盖 100%
 - **4 套主题配色**：深空紫 / 海洋蓝 / 森林绿 / 浅色模式，Canvas 动画随主题变色
 - **多版本题库**：28 题基础版 + 50 题进阶版，支持自定义 JSON 题库导入
-- **73 个单元测试全部通过**（评分 / 九型 / 报告生成 / 分享功能）
+- **103 个单元测试全部通过**（评分 / 九型 / 报告生成 / 报告文案完整性 / 分享功能）
 - **ESLint 零报警**（14 个 JS/TS 文件零错误零警告）
 - **覆盖率**：核心评分模块 96%，报告生成 95%
 - PWA 离线可用（Service Worker v2，支持增量更新 + 版本通知）
