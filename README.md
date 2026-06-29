@@ -32,14 +32,15 @@
 | 层级 | 技术方案 |
 |------|---------|
 | 框架 | 无框架 SPA |
+| 构建工具 | **Vite 8**（开发 HMR + 生产打包） |
 | 样式 | CSS 变量 + 毛玻璃效果 (backdrop-filter) |
 | 图表 | Canvas 手绘雷达图（DPR 适配） |
 | 动画 | CSS Animation + Transition + requestAnimationFrame |
 | 存储 | localStorage（答题进度持久化） |
 | 分享 | html2canvas (CDN) 截图 + Base64 URL 分享（带签名防篡改） |
 | PWA | Service Worker（版本化增量更新） |
-| 测试 | Jest + JSDOM（40 个单元测试 + 覆盖率） |
-| 代码质量 | ESLint + EditorConfig |
+| 测试 | Jest + JSDOM（**73 个单元测试**，覆盖率 **50%+**） |
+| 代码质量 | ESLint（零报警）+ EditorConfig |
 
 ## 🌐 浏览器兼容
 
@@ -57,19 +58,21 @@
 
 ```
 灵魂问答/
-├── index.html          # 主页面
+├── index.html          # 主页面（Vite 入口）
+├── vite.config.js      # Vite 构建配置
 ├── manifest.json       # PWA 清单
-├── sw.js               # Service Worker（离线缓存 v2，版本自管理）
-├── package.json        # 依赖与测试配置
+├── sw.js               # Service Worker 离线缓存 v2
+├── package.json        # 依赖与脚本
 ├── jest.config.js      # Jest 配置（含覆盖率）
 ├── jest-setup.js       # 测试环境配置
-├── eslint.config.mjs   # ESLint 配置
-├── .prettierrc         # 代码格式化配置
+├── eslint.config.mjs   # ESLint 配置（零报警）
+├── .prettierrc         # 代码格式化
 ├── .editorconfig       # 编辑器通用配置
 ├── .gitignore
 ├── css/
-│   └── style.css       # 全局样式（深空灵魂主题）
+│   └── style.css       # 全局样式（深空灵魂主题 · 1060 行）
 ├── js/
+│   ├── main.js         # Vite 入口（按顺序导入所有模块）
 │   ├── questions.js    # 题库数据（28 题 + 计分映射）
 │   ├── scoring.js      # 评分算法（OCEAN + 九型 z-score 匹配）
 │   ├── utils.js        # 通用工具函数（XSS 防护模板、DOM 构建）
@@ -78,25 +81,48 @@
 │   ├── share.js        # 分享功能（截图/链接签名）
 │   └── webhook.js      # 管理员数据回传（防抖/多平台自适应）
 ├── __tests__/
-│   ├── scoring.test.js           # 评分与九型匹配单元测试（19 用例）
-│   ├── report_and_share.test.js  # 报告生成与分享测试（21 用例）
-│   └── distribution_test.js      # 九型分布测试（手动运行）
+│   ├── scoring.test.js           # 评分与九型匹配（19 用例）
+│   ├── report_and_share.test.js  # 报告生成与分享（21 用例）
+│   ├── ui.test.js                # UI 交互测试（18 用例，新增）
+│   ├── webhook.test.js           # Webhook 推送测试（15 用例，新增）
+│   └── distribution_test.js      # 九型分布验证（手动运行）
+├── dist/               # 构建产物（Vite build 生成）
 └── docs/
     └── plan.md         # 详细设计文档
 ```
 
 ## 🚀 使用方式
 
-直接打开 `index.html` 即可体验。支持所有现代浏览器。
+### 开发模式（热更新）
+
+```bash
+npm run dev
+# 启动开发服务器 → http://localhost:3000
+# 修改代码自动热更新
+```
+
+### 生产构建
+
+```bash
+npm run build
+# 产出在 dist/ 目录，可直接部署到任何静态托管平台
+```
+
+### 预览构建产物
+
+```bash
+npm run preview
+# 在本地预览生产构建效果
+```
 
 ### 安装依赖（可选，仅用于运行测试与代码检查）
 
 ```bash
 npm install
-npm test         # 运行单元测试（40 个用例）
-npm run test:coverage  # 运行测试并生成覆盖率报告
-npm run lint     # 代码风格检查
-npm run lint:fix # 自动修复代码风格问题
+npm test              # 运行单元测试（73 个用例）
+npm run test:coverage # 运行测试并生成覆盖率报告
+npm run lint          # 代码风格检查
+npm run lint:fix      # 自动修复代码风格问题
 ```
 
 ### 九型人格分布测试（可选）

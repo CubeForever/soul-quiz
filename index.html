@@ -121,14 +121,8 @@
   <!-- 无障碍实时区域 -->
   <div id="announce" class="sr-only" aria-live="polite" style="position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0,0,0,0)"></div>
 
-  <!-- ═══ JavaScript ═══ -->
-  <script src="js/questions.js"></script>
-  <script src="js/scoring.js"></script>
-  <script src="js/utils.js"></script>
-  <script src="js/report.js"></script>
-  <script src="js/webhook.js"></script>
-  <script src="js/share.js"></script>
-  <script src="js/ui.js"></script>
+  <!-- Vite 入口（开发模式：ES Module，生产模式：构建产物） -->
+  <script type="module" src="/js/main.js"></script>
 
 </body>
 </html>

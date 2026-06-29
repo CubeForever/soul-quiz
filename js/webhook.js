@@ -240,5 +240,14 @@ window.SoulWebhook = (() => {
     }
   }
 
-  return { send, config: ADMIN_CONFIG };
+  // ═══ 重置内部状态（仅测试用） ═══
+  function _testReset() {
+    lastSendTime = 0;
+    if (pendingTimer) {
+      clearTimeout(pendingTimer);
+      pendingTimer = null;
+    }
+  }
+
+  return { send: send, config: ADMIN_CONFIG, _testReset: _testReset };
 })();
