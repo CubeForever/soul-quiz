@@ -15,8 +15,8 @@ beforeEach(function() {
   // 设置 DOM 结构
   setupSoulDOM();
   // 加载 ui.js（清除 require 缓存后重新加载）
-  delete require.cache[require.resolve('../js/ui.js')];
-  require('../js/ui.js');
+  delete require.cache[require.resolve('../js/ui')];
+  require('../js/ui');
   // 初始化 UI
   window.SoulUI.init();
 });

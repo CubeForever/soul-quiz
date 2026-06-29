@@ -1,3 +1,4 @@
+// @ts-nocheck
 /**
  * utils.js — 灵魂解码通用工具函数
  * XSS 防护、DOM 构建、安全模板

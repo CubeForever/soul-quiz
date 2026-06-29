@@ -10,11 +10,13 @@
     "test": "jest",
     "test:watch": "jest --watch",
     "test:coverage": "jest --coverage",
-    "lint": "eslint js/",
-    "lint:fix": "eslint js/ --fix"
+    "lint": "eslint 'js/**/*.{ts,js}'",
+    "lint:fix": "eslint 'js/**/*.{ts,js}' --fix"
   },
   "devDependencies": {
     "@eslint/js": "^10.0.1",
+    "@typescript-eslint/eslint-plugin": "^8.62.0",
+    "@typescript-eslint/parser": "^8.62.0",
     "esbuild": "^0.28.1",
     "eslint": "^10.6.0",
     "eslint-config-prettier": "^10.1.8",
@@ -22,6 +24,8 @@
     "jest": "^29.7.0",
     "jest-environment-jsdom": "^29.7.0",
     "prettier": "^3.9.1",
+    "ts-jest": "^29.4.11",
+    "typescript": "^6.0.3",
     "vite": "^8.1.0"
   }
 }

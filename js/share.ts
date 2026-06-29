@@ -1,3 +1,4 @@
+// @ts-nocheck
 /**
  * share.js — 分享功能模块
  * 使用 html2canvas 截图生成分享图片

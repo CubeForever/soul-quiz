@@ -81,12 +81,12 @@ function setupSoulDOM() {
 }
 
 // === 加载模块 ===
-require(path.resolve(__dirname, 'js/questions.js'));
-require(path.resolve(__dirname, 'js/scoring.js'));
-require(path.resolve(__dirname, 'js/utils.js'));
-require(path.resolve(__dirname, 'js/report.js'));
-require(path.resolve(__dirname, 'js/share.js'));
-require(path.resolve(__dirname, 'js/webhook.js'));
+require(path.resolve(__dirname, 'js/questions'));
+require(path.resolve(__dirname, 'js/scoring'));
+require(path.resolve(__dirname, 'js/utils'));
+require(path.resolve(__dirname, 'js/report'));
+require(path.resolve(__dirname, 'js/share'));
+require(path.resolve(__dirname, 'js/webhook'));
 // ui.js 不在全局加载：它会在 DOMContentLoaded 时自动执行 init()，
 // 需要精确的 DOM 结构，由各测试文件按需加载
 

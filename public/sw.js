@@ -13,13 +13,14 @@ const PRECACHE_URLS = [
   './',
   './index.html',
   './css/style.css',
-  './js/questions.js',
-  './js/scoring.js',
-  './js/utils.js',
-  './js/report.js',
-  './js/ui.js',
-  './js/share.js',
-  './js/webhook.js',
+  './js/main.js',
+  './js/questions',
+  './js/scoring',
+  './js/utils',
+  './js/report',
+  './js/ui',
+  './js/share',
+  './js/webhook',
   './manifest.json'
 ];
 

@@ -4,12 +4,12 @@
  */
 
 // 加载顺序必须与 index.html 原始顺序一致
-import './questions.js';
-import './scoring.js';
-import './utils.js';
-import './report.js';
-import './webhook.js';
-import './share.js';
+import './questions';
+import './scoring';
+import './utils';
+import './report';
+import './webhook';
+import './share';
 
 // ui.js 在 DOMContentLoaded 时自动初始化，最后加载
-import './ui.js';
+import './ui';

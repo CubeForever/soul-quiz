@@ -1,5 +1,5 @@
 /**
- * scoring.js — 灵魂解码评分引擎
+ * scoring.ts — 灵魂解码评分引擎
  * OCEAN 五维评分 + 九型人格匹配
  */
 
@@ -7,54 +7,46 @@ window.SoulScoring = {
 
   // ═══ 评分配置常量 ═══
   CONFIG: {
-    // 归一化因子：数值越低，最终得分越高
-    // 0.62 时典型主维度可达 80-95 分，次维度 30-60 分
     NORMALIZE_FACTOR: 0.72,
-    // 百分制上限/下限
     MAX_PERCENT: 95,
     MIN_PERCENT: 5,
-    // 5 档标签阈值（>=）
     TAG_THRESHOLDS: [82, 62, 45, 28],
-    // 九型档位映射
     ENNEAGRAM_HIGH: 70,
     ENNEAGRAM_MID_LOW: 42,
-    // 排序题权重
     RANK_MULTIPLIERS: [1, 0.6, 0.3, 0, 0]
   },
 
-  DIMENSIONS: ['openness', 'conscientiousness', 'extraversion', 'agreeableness', 'neuroticism'],
+  DIMENSIONS: ['openness', 'conscientiousness', 'extraversion', 'agreeableness', 'neuroticism'] as DimensionKey[],
 
   /**
    * 计算五维原始得分
-   * @param {Array} answers - [{questionId, choice}]
-   * @returns {Object} 原始分数
    */
-  calculateRawScores(answers) {
-    const raw = { openness: 0, conscientiousness: 0, extraversion: 0, agreeableness: 0, neuroticism: 0 };
+  calculateRawScores(answers: AnswerData[]): RawScores {
+    const raw: RawScores = { openness: 0, conscientiousness: 0, extraversion: 0, agreeableness: 0, neuroticism: 0 };
 
-    answers.forEach(answer => {
-      const question = window.SOUL_QUESTIONS.find(q => q.id === answer.questionId);
+    answers.forEach(function(answer: AnswerData) {
+      const question: QuestionData | undefined = window.SOUL_QUESTIONS.find(function(q: QuestionData) { return q.id === answer.questionId; });
       if (!question) return;
 
       if (question.type === 'ranking') {
-        // 排序题：第1名得满分，第2名60%，第3名30%，第4-5名0
-        const choice = answer.choice; // Array of option ids in ranked order
+        const choice = answer.choice as string[];
         if (!Array.isArray(choice)) return;
-        const multipliers = this.CONFIG.RANK_MULTIPLIERS;
-        choice.forEach((optId, rank) => {
-          const option = question.options.find(o => o.id === optId);
+        const multipliers = [1, 0.6, 0.3, 0, 0];
+        choice.forEach(function(optId: string, rank: number) {
+          const option = question.options.find(function(o: QuestionOption) { return o.id === optId; });
           if (!option) return;
           const m = multipliers[rank] || 0;
-          Object.keys(option.scores).forEach(dim => {
-            raw[dim] += option.scores[dim] * m;
+          const scores = option.scores as Record<string, number>;
+          Object.keys(scores).forEach(function(dim: string) {
+            raw[dim] = (raw[dim] || 0) + scores[dim] * m;
           });
         });
       } else {
-        // 场景题 / 量表题
-        const option = question.options.find(o => String(o.id) === String(answer.choice));
+        const option = question.options.find(function(o: QuestionOption) { return String(o.id) === String(answer.choice); });
         if (!option) return;
-        Object.keys(option.scores).forEach(dim => {
-          raw[dim] += option.scores[dim];
+        const scores = option.scores as Record<string, number>;
+        Object.keys(scores).forEach(function(dim: string) {
+          raw[dim] = (raw[dim] || 0) + scores[dim];
         });
       }
     });
@@ -65,30 +57,30 @@ window.SoulScoring = {
   /**
    * 获取每维度理论最高分
    */
-  getMaxScores(questions) {
-    const max = { openness: 0, conscientiousness: 0, extraversion: 0, agreeableness: 0, neuroticism: 0 };
+  getMaxScores(questions: QuestionData[]): RawScores {
+    const max: RawScores = { openness: 0, conscientiousness: 0, extraversion: 0, agreeableness: 0, neuroticism: 0 };
 
-    questions.forEach(q => {
+    questions.forEach(function(q: QuestionData) {
       if (q.type === 'ranking') {
-        // 最高分 = 最佳选项的满分（第一名 100%）
-        const dimMaxes = {};
-        q.options.forEach(opt => {
-          Object.keys(opt.scores).forEach(dim => {
-            dimMaxes[dim] = Math.max(dimMaxes[dim] || 0, opt.scores[dim]);
+        const dimMaxes: Record<string, number> = {};
+        q.options.forEach(function(opt: QuestionOption) {
+          const scores = opt.scores as Record<string, number>;
+          Object.keys(scores).forEach(function(dim: string) {
+            dimMaxes[dim] = Math.max(dimMaxes[dim] || 0, scores[dim]);
           });
         });
-        Object.keys(dimMaxes).forEach(dim => {
+        Object.keys(dimMaxes).forEach(function(dim: string) {
           max[dim] += dimMaxes[dim];
         });
       } else {
-        // 场景题/量表题：取每个维度在所有选项中的最高值
-        const dimMaxes = {};
-        q.options.forEach(opt => {
-          Object.keys(opt.scores).forEach(dim => {
-            dimMaxes[dim] = Math.max(dimMaxes[dim] || 0, opt.scores[dim]);
+        const dimMaxes: Record<string, number> = {};
+        q.options.forEach(function(opt: QuestionOption) {
+          const scores = opt.scores as Record<string, number>;
+          Object.keys(scores).forEach(function(dim: string) {
+            dimMaxes[dim] = Math.max(dimMaxes[dim] || 0, scores[dim]);
           });
         });
-        Object.keys(dimMaxes).forEach(dim => {
+        Object.keys(dimMaxes).forEach(function(dim: string) {
           max[dim] += dimMaxes[dim];
         });
       }
@@ -99,24 +91,22 @@ window.SoulScoring = {
 
   /**
    * 原始分 → 百分制
-   * 归一化因子 0.72：聚焦型用户主维度可达 80+，自然答题在 40-75 区间
-   * 避免分数过高导致所有九型人格都匹配到同一种类型
    */
-  normalizeScores(raw, max) {
-    const result = {};
+  normalizeScores(raw: RawScores, max: RawScores): NormalizedScores {
+    const result: Record<string, number> = {};
     const cfg = this.CONFIG;
-    this.DIMENSIONS.forEach(dim => {
+    this.DIMENSIONS.forEach(function(dim: DimensionKey) {
       const baseline = Math.max(max[dim] * cfg.NORMALIZE_FACTOR, 1);
       result[dim] = Math.min(cfg.MAX_PERCENT, Math.max(cfg.MIN_PERCENT, Math.round((raw[dim] / baseline) * 100)));
     });
-    return result;
+    return result as RawScores;
   },
 
   /**
    * 生成人格标签
    */
-  generatePersonaTags(scores) {
-    const tags = [];
+  generatePersonaTags(scores: NormalizedScores): string[] {
+    const tags: string[] = [];
     const [T1, T2, T3, T4] = this.CONFIG.TAG_THRESHOLDS;
 
     if (scores.openness >= T1) tags.push('梦想家');
@@ -153,10 +143,9 @@ window.SoulScoring = {
   },
 
   /**
-   * 九型人格五维模式数据（可被 report.js 共用）
-   * w: 权重(2=核心 1.5=重要 1=次要 0.5=弱相关), e: 期望档位
+   * 九型人格五维模式数据
    */
-  getEnneagramPatterns() {
+  getEnneagramPatterns(): EnneagramPattern[] {
     return [
       { type: 1, name: '秩序守护者', icon: '🎯', motivation: '追求正确与完美，希望世界井然有序', fear: '害怕犯错、堕落或变得腐败',
         w: { conscientiousness:{e:'high',w:2}, agreeableness:{e:'high',w:1.5}, neuroticism:{e:'mid',w:1}, openness:{e:'mid',w:1}, extraversion:{e:'mid',w:0.5} } },
@@ -180,8 +169,7 @@ window.SoulScoring = {
   },
 
   /**
-   * 九型人格参考人群分布（基于题库特征的理论期望）
-   * 用于将用户得分转为相对位置（z-score），消除各维度天然分差
+   * 九型人格参考人群分布
    */
   ENNEAGRAM_POPULATION_STATS: {
     openness:          { mean: 65, std: 12 },
@@ -193,47 +181,32 @@ window.SoulScoring = {
 
   /**
    * 匹配九型人格（相对位置法）
-   * 1. 将用户得分转为 z-score（相对人群分布）
-   * 2. 将类型理想分也转为 z-score
-   * 3. 对比 z-score 模式匹配度
    */
-  matchEnneagram(scores) {
+  matchEnneagram(scores: NormalizedScores): EnneagramResult {
     const patterns = this.getEnneagramPatterns();
     const stats = this.ENNEAGRAM_POPULATION_STATS;
+    const idealScore: Record<string, number> = { high: 78, mid: 48, low: 18 };
 
-    // 理想分映射
-    const idealScore = { high: 78, mid: 48, low: 18 };
-
-    // 对每种类型计算匹配分
-    const results = patterns.map(type => {
+    const results: Array<{ type: EnneagramPattern; score: number }> = patterns.map(function(type: EnneagramPattern) {
       let totalMatch = 0;
 
-      this.DIMENSIONS.forEach(dim => {
+      (['openness', 'conscientiousness', 'extraversion', 'agreeableness', 'neuroticism'] as DimensionKey[]).forEach(function(dim: DimensionKey) {
         const entry = type.w[dim];
         const w = entry.w;
-        const { mean, std } = stats[dim];
+        const mean = stats[dim].mean;
+        const std = stats[dim].std;
 
-        // 用户 z-score（相对于人群分布）
         const userZ = (scores[dim] - mean) / std;
-
-        // 理想 z-score
         const ideal = idealScore[entry.e];
         const idealZ = (ideal - mean) / std;
-
-        // 同向加分，反向扣分
-        // z-score 模式一致性：同正/同负/同零
         const product = userZ * idealZ;
-        // 同向贡献正分，反向贡献负分
-        const match = product > 0 ? w * Math.min(Math.abs(product), 2) : w * Math.max(product, -1);
-        totalMatch += match;
+        totalMatch += product > 0 ? w * Math.min(Math.abs(product), 2) : w * Math.max(product, -1);
       });
 
-      return { type, score: totalMatch };
+      return { type: type, score: totalMatch };
     });
 
-    // 按得分降序
-    results.sort((a, b) => b.score - a.score);
-
+    results.sort(function(a, b) { return b.score - a.score; });
     const best = results[0].type;
 
     return {
@@ -248,7 +221,7 @@ window.SoulScoring = {
   /**
    * 完整评分流程
    */
-  evaluate(answers) {
+  evaluate(answers: AnswerData[]): EvaluationResult {
     const questions = window.SOUL_QUESTIONS;
     const raw = this.calculateRawScores(answers);
     const max = this.getMaxScores(questions);
@@ -256,6 +229,6 @@ window.SoulScoring = {
     const tags = this.generatePersonaTags(scores);
     const enneagram = this.matchEnneagram(scores);
 
-    return { raw, max, scores, tags, enneagram };
+    return { raw: raw, max: max, scores: scores, tags: tags, enneagram: enneagram };
   }
 };
