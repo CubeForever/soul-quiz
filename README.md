@@ -156,7 +156,6 @@ node __tests__/distribution_test.js
 
 ```javascript
 CONFIG: {
-  NORMALIZE_FACTOR: 0.72,       // 归一化因子
   MAX_PERCENT: 95,              // 分数上限
   MIN_PERCENT: 5,               // 分数下限
   TAG_THRESHOLDS: [82, 62, 45, 28],  // 5 档标签阈值

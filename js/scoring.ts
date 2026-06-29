@@ -7,7 +7,6 @@ window.SoulScoring = {
 
   // ═══ 评分配置常量 ═══
   CONFIG: {
-    NORMALIZE_FACTOR: 0.72,
     MAX_PERCENT: 95,
     MIN_PERCENT: 5,
     TAG_THRESHOLDS: [82, 62, 45, 28],
@@ -56,34 +55,22 @@ window.SoulScoring = {
 
   /**
    * 获取每维度理论最高分
+   * 对每道题，按维度取所有选项中的最大值并累加
    */
   getMaxScores(questions: QuestionData[]): RawScores {
     const max: RawScores = { openness: 0, conscientiousness: 0, extraversion: 0, agreeableness: 0, neuroticism: 0 };
 
     questions.forEach(function(q: QuestionData) {
-      if (q.type === 'ranking') {
-        const dimMaxes: Record<string, number> = {};
-        q.options.forEach(function(opt: QuestionOption) {
-          const scores = opt.scores as Record<string, number>;
-          Object.keys(scores).forEach(function(dim: string) {
-            dimMaxes[dim] = Math.max(dimMaxes[dim] || 0, scores[dim]);
-          });
+      const dimMaxes: Record<string, number> = {};
+      q.options.forEach(function(opt: QuestionOption) {
+        const scores = opt.scores as Record<string, number>;
+        Object.keys(scores).forEach(function(dim: string) {
+          dimMaxes[dim] = Math.max(dimMaxes[dim] !== undefined ? dimMaxes[dim] : -Infinity, scores[dim]);
         });
-        Object.keys(dimMaxes).forEach(function(dim: string) {
-          max[dim] += dimMaxes[dim];
-        });
-      } else {
-        const dimMaxes: Record<string, number> = {};
-        q.options.forEach(function(opt: QuestionOption) {
-          const scores = opt.scores as Record<string, number>;
-          Object.keys(scores).forEach(function(dim: string) {
-            dimMaxes[dim] = Math.max(dimMaxes[dim] || 0, scores[dim]);
-          });
-        });
-        Object.keys(dimMaxes).forEach(function(dim: string) {
-          max[dim] += dimMaxes[dim];
-        });
-      }
+      });
+      Object.keys(dimMaxes).forEach(function(dim: string) {
+        max[dim] = (max[dim] || 0) + dimMaxes[dim];
+      });
     });
 
     return max;
@@ -96,7 +83,7 @@ window.SoulScoring = {
     const result: Record<string, number> = {};
     const cfg = this.CONFIG;
     this.DIMENSIONS.forEach(function(dim: DimensionKey) {
-      const baseline = Math.max(max[dim] * cfg.NORMALIZE_FACTOR, 1);
+      const baseline = Math.max(max[dim], 1);
       result[dim] = Math.min(cfg.MAX_PERCENT, Math.max(cfg.MIN_PERCENT, Math.round((raw[dim] / baseline) * 100)));
     });
     return result as RawScores;

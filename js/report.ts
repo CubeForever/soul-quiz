@@ -372,9 +372,10 @@ window.SoulReport = (() => {
     // 2. 灵魂色彩
     const soulColor = COLOR_MAP[dim1] || COLOR_MAP.openness;
 
-    // 3. 总述
-    const tplIdx = (scores.openness + scores.conscientiousness + scores.extraversion) % SUMMARY_TEMPLATES.length;
-    const randomPhenomenon = PHENOMENA[(scores.openness + scores.neuroticism) % PHENOMENA.length];
+    // 3. 总述（使用五维分值哈希，确保同一组分数总是产生同一份报告）
+    const scoreHash = scores.openness * 31 + scores.conscientiousness * 37 + scores.extraversion * 41 + scores.agreeableness * 43 + scores.neuroticism * 47;
+    const tplIdx = scoreHash % SUMMARY_TEMPLATES.length;
+    const phenomenonIdx = (scoreHash * 7 + 3) % PHENOMENA.length;
     const summary = fillTemplate(SUMMARY_TEMPLATES[tplIdx], {
       dim1: getDimName(dim1),
       dim2: getDimName(dim2),
@@ -386,8 +387,8 @@ window.SoulReport = (() => {
       scenario1: getScenario(dim1, 'high'),
       scenario2: getScenario(dim2, 'high'),
       insight: getComboText(dim1, dim2, scores),
-      phenomenon: randomPhenomenon.phenomenon,
-      desc: randomPhenomenon.desc,
+      phenomenon: PHENOMENA[phenomenonIdx].phenomenon,
+      desc: PHENOMENA[phenomenonIdx].desc,
       quality: getDimLevelDesc(dim1, scores[dim1])
     });
 
@@ -441,7 +442,7 @@ window.SoulReport = (() => {
     }
 
     // 9. 共鸣
-    const blessingIdx = (scores.openness + scores.neuroticism) % BLESSINGS.length;
+    const blessingIdx = (scoreHash * 13 + 7) % BLESSINGS.length;
     const compatible = getCompatibleTypes(enneagram.type, scores);
     const resonance: ResonanceDetail = {
       compatible,

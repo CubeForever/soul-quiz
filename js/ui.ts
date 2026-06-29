@@ -420,16 +420,17 @@ window.SoulUI = (() => {
     element: Element | null;
   }
 
+  // AbortController 用于在重新渲染时清理旧监听器，防止累积
+  let dragAbortController: AbortController | null = null;
+
   function initDragSort(container: HTMLElement): void {
+    // 清理上一次拖拽的监听器
+    if (dragAbortController) dragAbortController.abort();
+    dragAbortController = new AbortController();
+    const signal = dragAbortController.signal;
+
     let dragItem: HTMLElement | null = null;
     let isPointerDown = false;
-
-    // 阻止页面在拖拽时滚动/缩放
-    container.addEventListener('touchstart', (e: TouchEvent) => {
-      if ((e.target as HTMLElement).closest('.ranking-item')) {
-        // iOS Safari 需要主动阻止默认行为才能抑制滚动
-      }
-    }, { passive: true });
 
     container.addEventListener('pointerdown', (e: PointerEvent) => {
       const item = (e.target as HTMLElement).closest('.ranking-item') as HTMLElement | null;
@@ -438,9 +439,8 @@ window.SoulUI = (() => {
       isPointerDown = true;
       item.classList.add('dragging');
       item.setPointerCapture(e.pointerId);
-      // 阻止页面滑动
       container.style.touchAction = 'none';
-    });
+    }, { signal });
 
     container.addEventListener('pointermove', (e: PointerEvent) => {
       if (!dragItem || !isPointerDown) return;
@@ -451,7 +451,7 @@ window.SoulUI = (() => {
       } else {
         container.appendChild(dragItem);
       }
-    });
+    }, { signal });
 
     container.addEventListener('pointerup', (e: PointerEvent) => {
       if (!dragItem) return;
@@ -461,7 +461,7 @@ window.SoulUI = (() => {
       dragItem = null;
       isPointerDown = false;
       container.style.touchAction = '';
-    });
+    }, { signal });
 
     container.addEventListener('pointercancel', (e: PointerEvent) => {
       if (!dragItem) return;
@@ -471,7 +471,7 @@ window.SoulUI = (() => {
       dragItem = null;
       isPointerDown = false;
       container.style.touchAction = '';
-    });
+    }, { signal });
 
     // 键盘操作：上下方向键调整排序
     container.addEventListener('keydown', (e: KeyboardEvent) => {
@@ -500,7 +500,7 @@ window.SoulUI = (() => {
         updateRankNumbers(container);
         item.focus();
       }
-    });
+    }, { signal });
   }
 
   function getDragAfterElement(container: HTMLElement, y: number): Element | null {
@@ -595,9 +595,10 @@ window.SoulUI = (() => {
     if (!canvas) return;
     const ctx = canvas.getContext('2d');
     if (!ctx) return;
-    canvas.width = canvas.offsetWidth * 2;
-    canvas.height = canvas.offsetHeight * 2;
-    ctx.scale(2, 2);
+    const dpr = window.devicePixelRatio || 1;
+    canvas.width = canvas.offsetWidth * dpr;
+    canvas.height = canvas.offsetHeight * dpr;
+    ctx.scale(dpr, dpr);
 
     const w = canvas.offsetWidth;
     const h = canvas.offsetHeight;

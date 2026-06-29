@@ -279,7 +279,6 @@ interface WebhookAnswerDetail {
 
 interface SoulScoringEngine {
   CONFIG: {
-    NORMALIZE_FACTOR: number;
     MAX_PERCENT: number;
     MIN_PERCENT: number;
     TAG_THRESHOLDS: number[];
