@@ -5,15 +5,18 @@
   "private": true,
   "scripts": {
     "test": "jest",
-    "test:watch": "jest --watch"
+    "test:watch": "jest --watch",
+    "test:coverage": "jest --coverage",
+    "lint": "eslint js/",
+    "lint:fix": "eslint js/ --fix"
   },
   "devDependencies": {
+    "@eslint/js": "^10.0.1",
+    "eslint": "^10.6.0",
+    "eslint-config-prettier": "^10.1.8",
+    "globals": "^17.7.0",
     "jest": "^29.7.0",
-    "jest-environment-jsdom": "^29.7.0"
-  },
-  "jest": {
-    "testEnvironment": "jsdom",
-    "setupFiles": ["./jest-setup.js"],
-    "testPathIgnorePatterns": ["/node_modules/", "distribution_test"]
+    "jest-environment-jsdom": "^29.7.0",
+    "prettier": "^3.9.1"
   }
 }

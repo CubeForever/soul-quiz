@@ -1,15 +1,8 @@
 /**
  * 灵魂解码 — 报告生成 & 分享功能 单元测试
  */
-const fs = require('fs');
-const path = require('path');
 
-// 加载依赖模块
-eval(fs.readFileSync(path.resolve(__dirname, '../js/questions.js'), 'utf8'));
-eval(fs.readFileSync(path.resolve(__dirname, '../js/scoring.js'), 'utf8'));
-eval(fs.readFileSync(path.resolve(__dirname, '../js/report.js'), 'utf8'));
-eval(fs.readFileSync(path.resolve(__dirname, '../js/share.js'), 'utf8'));
-
+// 模块已由 jest-setup.js 加载，通过 window.* 全局访问
 const mockEnneagram = { type: 4, name: '灵魂诗人', icon: '🎭' };
 
 // ════════════════════════════════════════════════

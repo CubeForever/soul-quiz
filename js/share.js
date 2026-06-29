@@ -81,13 +81,20 @@ window.SoulShare = {
    * 生成链接签名
    */
   _signData(data) {
-    // 简单 HMAC 风格签名：内容 + 固定密钥的 SHA-256 模拟
-    // 注意：这是前端防篡改，非加密安全
-    const str = JSON.stringify(data) + 'soul_secret_2026';
-    let hash = 0;
+    // 简单 HMAC 风格签名：内容 + 固定密钥的 DJB2 哈希
+    // ⚠️ 注意：这是前端防篡改，仅用于防止普通用户随意修改 URL 参数
+    //    前端代码对用户完全可见，无法做到真正的加密安全
+    const SECRET_PARTS = [
+      'soul_decoder_v1_',
+      '7f3a9c2e_',
+      'b8d45f1a',
+      '_sign_key_2026'
+    ];
+    const str = JSON.stringify(data) + SECRET_PARTS.join('');
+    let hash = 5381;
     for (let i = 0; i < str.length; i++) {
       const chr = str.charCodeAt(i);
-      hash = ((hash << 5) - hash) + chr;
+      hash = ((hash << 5) + hash) + chr;
       hash |= 0;
     }
     return Math.abs(hash).toString(36);

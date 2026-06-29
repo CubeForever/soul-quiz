@@ -3,6 +3,19 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
+
+  <!-- Content-Security-Policy：纵深防御，限制可执行脚本来源 -->
+  <!-- 注：部署到生产环境后可改为 HTTP 头方式配置，更安全 -->
+  <meta http-equiv="Content-Security-Policy" content="
+    default-src 'self';
+    script-src 'self' 'unsafe-inline' https://cdn.jsdelivr.net https://cdnjs.cloudflare.com;
+    style-src 'self' 'unsafe-inline';
+    img-src 'self' data:;
+    connect-src 'self' *;
+    font-src 'self';
+    frame-ancestors 'none';
+  ">
+
   <title>灵魂解码 — 发现你的灵魂密码</title>
   <meta name="description" content="基于大五人格（OCEAN）和九型人格的在线灵魂问答，28道灵魂之问，获取你的专属灵魂解读报告。">
   <meta name="keywords" content="灵魂解码,人格测试,大五人格,九型人格,心理测试,自我探索">
@@ -111,6 +124,7 @@
   <!-- ═══ JavaScript ═══ -->
   <script src="js/questions.js"></script>
   <script src="js/scoring.js"></script>
+  <script src="js/utils.js"></script>
   <script src="js/report.js"></script>
   <script src="js/webhook.js"></script>
   <script src="js/share.js"></script>

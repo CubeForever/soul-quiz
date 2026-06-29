@@ -1,16 +1,8 @@
 /**
  * 灵魂解码 — 评分 & 九型匹配 单元测试
  */
-const fs = require('fs');
-const path = require('path');
 
-// 先加载 questions
-const questionsCode = fs.readFileSync(path.resolve(__dirname, '../js/questions.js'), 'utf8');
-eval(questionsCode);
-
-// 再加载 scoring
-const scoringCode = fs.readFileSync(path.resolve(__dirname, '../js/scoring.js'), 'utf8');
-eval(scoringCode);
+// 模块已由 jest-setup.js 加载，通过 window.* 全局访问
 
 // ════════════════════════════════════════════════
 // 1. 基础：原始得分计算

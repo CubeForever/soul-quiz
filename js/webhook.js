@@ -139,13 +139,6 @@ window.SoulWebhook = (() => {
   }
 
   /**
-   * 钉钉 Markdown 消息体
-   */
-  function buildDingtalkMarkdown(payload) {
-    return this.buildWecomMarkdown(payload); // 钉钉 markdown 格式与企微类似
-  }
-
-  /**
    * 通用 JSON 消息体
    */
   function buildGeneric(payload) {

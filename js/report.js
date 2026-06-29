@@ -294,6 +294,10 @@ window.SoulReport = (() => {
     { phenomenon: '潮汐', desc: '在月光的牵引下有节律地进退，温柔却势不可挡' }
   ];
 
+  // ═══ 共享常量（避免 generate() 和 getDimName 重复定义） ═══
+  const DIM_NAMES = { openness: '开放性', conscientiousness: '尽责性', extraversion: '外向性', agreeableness: '宜人性', neuroticism: '神经质' };
+  const DIM_ICONS = { openness: '✨', conscientiousness: '🏛️', extraversion: '🌊', agreeableness: '💚', neuroticism: '🌙' };
+
   // ═══ 辅助函数 ═══
 
   function getLevel(score) {
@@ -390,17 +394,15 @@ window.SoulReport = (() => {
 
     // 4. 五维详情
     const dimensions = {};
-    const dimNames = { openness: '开放性', conscientiousness: '尽责性', extraversion: '外向性', agreeableness: '宜人性', neuroticism: '神经质' };
-    const dimIcons = { openness: '✨', conscientiousness: '🏛️', extraversion: '🌊', agreeableness: '💚', neuroticism: '🌙' };
 
-    Object.keys(dimNames).forEach(dim => {
+    Object.keys(DIM_NAMES).forEach(dim => {
       const level = getLevel(scores[dim]);
       dimensions[dim] = {
         score: scores[dim],
         level,
         text: DIMENSION_TEXTS[dim][level],
-        icon: dimIcons[dim],
-        name: dimNames[dim]
+        icon: DIM_ICONS[dim],
+        name: DIM_NAMES[dim]
       };
     });
 
@@ -471,8 +473,7 @@ window.SoulReport = (() => {
 
   // ═══ 辅助：维度名称 ═══
   function getDimName(dim) {
-    const map = { openness: '开放性', conscientiousness: '尽责性', extraversion: '外向性', agreeableness: '宜人性', neuroticism: '神经质' };
-    return map[dim] || dim;
+    return DIM_NAMES[dim] || dim;
   }
 
   function getDimLevelDesc(dim, score) {

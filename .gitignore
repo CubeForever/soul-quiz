@@ -1,3 +1,4 @@
 .deep-copilot/
 node_modules/
 __tests__/distribution_test.js
+coverage/

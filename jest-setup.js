@@ -1,7 +1,6 @@
 /**
  * 测试 setup：在 JSDOM 中加载全局 JS 模块
  */
-const fs = require('fs');
 const path = require('path');
 
 // 模拟 Canvas 上下文
@@ -40,8 +39,6 @@ global.cancelAnimationFrame = jest.fn(id => clearTimeout(id));
 // 模拟 console
 global.console = { ...console, warn: jest.fn(), error: jest.fn() };
 
-// 模拟 btoa/atob（JSDOM 16+ 自带，仅作后备）
-
 // 模拟 navigator.clipboard
 if (!global.navigator) global.navigator = {};
 global.navigator.clipboard = {
@@ -49,18 +46,10 @@ global.navigator.clipboard = {
   readText: jest.fn(() => Promise.resolve(''))
 };
 
-// 加载 questions.js（数据依赖）
-const questionsCode = fs.readFileSync(path.resolve(__dirname, 'js/questions.js'), 'utf8');
-eval(questionsCode);
-
-// 加载 scoring.js
-const scoringCode = fs.readFileSync(path.resolve(__dirname, 'js/scoring.js'), 'utf8');
-eval(scoringCode);
-
-// 加载 report.js
-const reportCode = fs.readFileSync(path.resolve(__dirname, 'js/report.js'), 'utf8');
-eval(reportCode);
-
-// 加载 share.js
-const shareCode = fs.readFileSync(path.resolve(__dirname, 'js/share.js'), 'utf8');
-eval(shareCode);
+// 加载模块（使用 require 替代 eval）
+// 这些文件通过 window.* 全局赋值，require() 在 JSDOM 中自动挂载到全局
+require(path.resolve(__dirname, 'js/questions.js'));
+require(path.resolve(__dirname, 'js/scoring.js'));
+require(path.resolve(__dirname, 'js/utils.js'));
+require(path.resolve(__dirname, 'js/report.js'));
+require(path.resolve(__dirname, 'js/share.js'));
