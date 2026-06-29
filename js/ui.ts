@@ -797,9 +797,7 @@ window.SoulUI = (() => {
         <div class="resonance-card">
           <div class="resonance-compatible">
             <span class="resonance-label">🤝 最契合的灵魂类型</span>
-            <div class="compatible-tags">
-              ${report.resonance.compatible.map((t: string) => window.SoulUtils.html`<span class="compatible-tag">${t}</span>`)}
-            </div>
+            <div class="compatible-tags" id="compatible-tags-placeholder"></div>
           </div>
           <p class="resonance-advice">${report.resonance.advice}</p>
           <div class="resonance-blessing">
@@ -812,6 +810,16 @@ window.SoulUI = (() => {
           如有需要，请拨打全国心理援助热线：400-161-9995</p>
         </div>
       `;
+      // 兼容类型标签（避免 html 模板双重转义）
+      const tagsContainer = resonance.querySelector('#compatible-tags-placeholder');
+      if (tagsContainer) {
+        report.resonance.compatible.forEach((t: string) => {
+          const tag = document.createElement('span');
+          tag.className = 'compatible-tag';
+          tag.textContent = t;
+          tagsContainer.appendChild(tag);
+        });
+      }
       container.appendChild(resonance);
 
       // 绘制雷达图
